@@ -27,7 +27,7 @@ This program is for teenagers, it addresses boredom which happens a lot.
 - Stephen Wallace - [current contribution or responsibility]
 
 ## First buildable version
-- [ ] A user can move around, break bricks, and shoot, collide with bricks, not move out of the screen.
+- [  ] A user can move around, break bricks, and shoot, collide with bricks, not move out of the screen.
 - [ ] The program responds by stopping players before going through a brick, metal, or the border.
 - [ ] We have limited the first version to simple player, obstacles, and shooting.
 
