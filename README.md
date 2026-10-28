@@ -27,9 +27,9 @@ This program is for teenagers, it addresses boredom which happens a lot.
 - Stephen Wallace - [current contribution or responsibility]
 
 ## First buildable version
-- ![ ] A user can move around, break bricks, and shoot, collide with bricks, not move out of the screen.
-- [ ] The program responds by stopping players before going through a brick, metal, or the border.
-- [ ] We have limited the first version to simple player, obstacles, and shooting.
+- [x] A user can move around, break bricks, and shoot, collide with bricks, not move out of the screen.
+- [x] The program responds by stopping players before going through a brick, metal, or the border.
+- [x] We have limited the first version to simple player, obstacles, and shooting.
 
 ## Design pack
 - [ ] User-interface mockup: [view the mockup](design/ui-mockup.png)
@@ -38,7 +38,16 @@ This program is for teenagers, it addresses boredom which happens a lot.
 - [ ] Project schedule: [view the schedule](design/project-schedule.png)
 
 ## Current status
-[What is complete? What is the team's next step?]
+- [x] movements
+- [x] brick walls
+- [x] collisions
+- [x] firing
+- [x] metal walls
+- [x] eagle
+- [ ] models
+- [ ] bots
+- [ ] power ups
+- [ ] random maps
 
 ## How to view the artifacts
-[Explain any file type or tool a viewer needs.]
+All you need is processing.
