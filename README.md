@@ -16,18 +16,20 @@
 based on the game battle city the image above, 
 
 more info ↓
-# [Warzone 2077 (temporary name)]
+# Warzone 2077 (temporary name)
 
-[This program is for teenagers, it addresses boredom which happens a lot.]
+This program is for teenagers, it addresses boredom which happens a lot.
 
 ## Team
-- [Name] - [current contribution or responsibility]
-- [Name] - [current contribution or responsibility]
+- Rebecca Jackson - [current contribution or responsibility]
+- Yuxing Li - [current contribution or responsibility]
+- Bradley Nieto Medina - [current contribution or responsibility]
+- Stephen Wallace - [current contribution or responsibility]
 
 ## First buildable version
-- [ ] A user can [main action].
-- [ ] The program responds by [visible result or feedback].
-- [ ] We have limited the first version to [small, realistic scope].
+- [ ] A user can move around, break bricks, and shoot, collide with bricks, not move out of the screen.
+- [ ] The program responds by stopping players before going through a brick, metal, or the border.
+- [ ] We have limited the first version to simple player, obstacles, and shooting.
 
 ## Design pack
 - [ ] User-interface mockup: [view the mockup](design/ui-mockup.png)
