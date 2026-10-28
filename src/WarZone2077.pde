@@ -1,6 +1,6 @@
 // --- BATTLE CITY ENGINE ---
 
-// Map grid config in 13 x 13
+// maap grid config in 13 x 13
 final int GRID_COLS = 13;
 final int GRID_ROWS = 13;
 final int TILE_SIZE = 32; // 13 * 32 = 416px display field
