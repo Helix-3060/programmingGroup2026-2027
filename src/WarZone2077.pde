@@ -1,4 +1,4 @@
-// --- BATTLE CITY ENGINE TEST ---
+// --- BATTLE CITY ENGIINE TEST ---
 
 // maap grid config in 13 x 13
 final int GRID_COLS = 13;
@@ -44,7 +44,7 @@ void draw() {
   drawBullets();
 }
 
-// --- map render ---
+// map render
 void initMap() {
   // Clear map
   for (int r = 0; r < GRID_ROWS; r++) {
@@ -110,7 +110,7 @@ void drawMap() {
   }
 }
 
-// --- TANK CLASS ---
+// tank
 class Tank {
   float x, y;
   float speed = 2.0;
@@ -193,7 +193,7 @@ class Tank {
   }
 }
 
-// --- BULLET CLASS & SYSTEM ---
+// bullet systemm
 class Bullet {
   float x, y;
   float speed = 6.0;
@@ -214,7 +214,7 @@ class Bullet {
       case 3: x -= speed; break;
     }
     
-    // Out of screen bounds check
+    // beyond screen checking
     if (x < 0 || x > width || y < 0 || y > height) {
       active = false;
       return;
