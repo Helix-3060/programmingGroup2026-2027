@@ -53,7 +53,7 @@ void initMap() {
     }
   }
   
-  // Sample Brick Wall Columns (Classic Stage 1 feel)
+  // Sample walls
   for (int r = 1; r < 10; r += 2) {
     map[r][1] = TILE_BRICK; map[r][2] = TILE_BRICK;
     map[r][4] = TILE_BRICK; map[r][5] = TILE_BRICK;
@@ -61,10 +61,10 @@ void initMap() {
     map[r][10] = TILE_BRICK; map[r][11] = TILE_BRICK;
   }
   
-  // Steel Wall Blockers in Center
+  // Steel wall
   map[6][6] = TILE_STEEL;
   
-  // Eagle Base Setup (Bottom Middle)
+  // eagle
   map[12][6] = TILE_EAGLE;
   map[12][5] = TILE_BRICK;
   map[11][5] = TILE_BRICK;
@@ -131,13 +131,13 @@ class Tank {
     else if (keyDown) { dir = 2; nextY += speed; }
     else if (keyLeft) { dir = 3; nextX -= speed; }
     
-    // Check collision before applying move
+    // Check collisin
     if (!collidesWithMap(nextX, nextY)) {
       x = constrain(nextX, 0, width - TILE_SIZE);
       y = constrain(nextY, 0, height - TILE_SIZE);
     }
     
-    // Firing cooldown
+    // Firing 
     if (cooldown > 0) cooldown--;
     if (keySpace && cooldown == 0) {
       shoot();
@@ -175,17 +175,17 @@ class Tank {
     translate(x + TILE_SIZE / 2.0, y + TILE_SIZE / 2.0);
     rotate(dir * HALF_PI); // Rotate matrix according to direction
     
-    // Tank Body
+    // tank body
     fill(255, 204, 0); // Classic P1 Yellow
     noStroke();
     rect(-14, -14, 28, 28);
     
-    // Treads
+    // tread
     fill(80);
     rect(-16, -16, 6, 32);
     rect(10, -16, 6, 32);
     
-    // Cannon Barrel (Points UP by default at dir=0)
+    // Cannon barrel
     fill(0);
     rect(-3, -16, 6, 12);
     
@@ -220,7 +220,7 @@ class Bullet {
       return;
     }
     
-    // Map Collision Check
+    // Map Collistion
     int col = int((x + 2) / TILE_SIZE);
     int row = int((y + 2) / TILE_SIZE);
     
