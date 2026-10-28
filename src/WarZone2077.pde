@@ -1,4 +1,4 @@
-// --- BATTLE CITY ENGIINE TEST ---
+// --- BATTLE CITY ENGIINE TEST
 
 // maap grid config in 13 x 13
 final int GRID_COLS = 13;
