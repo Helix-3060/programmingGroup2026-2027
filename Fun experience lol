@@ -1,0 +1,1489 @@
+If u wanna have fun during the work copy the code below to enjoy! :)
+
+// WARZONE: 2077 v5 - SURVIVAL / LOCAL DUEL / ZOMBIES / STORY | Processing Java Mode | Optional PNGs, no libraries.
+// WASD / arrows: move. SPACE / J: fire. P / ESC: pause. R: restart. M: menu.
+import java.util.ArrayList;
+
+final int MENU=0, PLAY=1, PAUSE=2, LOST=3, CLEAR=4, WIN=5, HELP=6;
+final int N=26, TILE=8, WORLD=208, OX=24, OY=32;
+final int[] DX={0,1,0,-1}, DY={-1,0,1,0};
+// Set FIXED_SEED to 0..999999 to replay a map; -1 makes every run random.
+final int FIXED_SEED=-1;
+int mapSeed=0, baseHP=3;
+float baseFlash=0, lastPlayerShot=-100;
+int ALERT=#EE9251;
+int BG=#20272A, DARK=#11191D, YELLOW=#F0BD42, PALE=#F3DFAB;
+int GRAY=#8C9698, STEEL=#C0C1B9, OLIVE=#7B824A;
+PGraphics g;
+int[][] map=new int[N][N];
+ArrayList<Tank> enemies=new ArrayList<Tank>();
+ArrayList<Bullet> bullets=new ArrayList<Bullet>();
+ArrayList<Spark> effects=new ArrayList<Spark>();
+ArrayList<Power> powers=new ArrayList<Power>();
+Tank player;
+int state=MENU, stage=1, lives=3, score=0, best=0;
+int spawned=0, killed=0, totalEnemies=20, lastDir=0, nextLife=10000;
+boolean baseAlive=true;
+boolean[] held=new boolean[256];
+float gameTime=0, freezeTimer=0, fortTimer=0, bannerTimer=0;
+float spawnTimer=0, respawnTimer=0, accumulator=0;
+int lastMillis;
+String message="";
+
+void settings() { size(1056,792); pixelDensity(1); noSmooth(); }
+void setup() {
+  surface.setTitle("WARZONE: 2077 - ARMORED CITY");
+  g=createGraphics(352,264); g.noSmooth();
+  loadArt(); frameRate(60); lastMillis=millis();
+}
+
+void clearKeys() { for(int i=0;i<held.length;i++) held[i]=false; }
+boolean down(int k) { return k>=0 && k<held.length && held[k]; }
+int directionKey(int k) {
+  if(k==UP || k=='W') return 0;
+  if(k==RIGHT || k=='D') return 1;
+  if(k==DOWN || k=='S') return 2;
+  if(k==LEFT || k=='A') return 3;
+  return -1;
+}
+boolean directionHeld(int d) {
+  int[] arrow={UP,RIGHT,DOWN,LEFT}, letter={'W','D','S','A'};
+  return down(arrow[d]) || down(letter[d]);
+}
+
+void keyReleased() { if(keyCode>=0 && keyCode<held.length) held[keyCode]=false; }
+boolean mouseIn(float x,float y,float w,float h) {
+  float mx=mouseX*352.0f/width, my=mouseY*264.0f/height;
+  return mx>=x && mx<x+w && my>=y && my<y+h;
+}
+
+
+
+// Mirror cover, preserve every road connection, and keep two separate flanks.
+void buildMap() {
+  mapSeed=FIXED_SEED>=0 ? (FIXED_SEED+(stage-1)*1009)%1000000 : (int)random(1000000);
+  generateMap(mapSeed);
+}
+void generateMap(int seed) {
+  mapSeed=seed;
+  java.util.Random rng=new java.util.Random(seed);
+  for(int y=0;y<N;y++) for(int x=0;x<N;x++) map[y][x]=0;
+  baseWall(1);
+  int coverRow=3+rng.nextInt(3);
+  macro(6,coverRow,1);
+  ArrayList<Integer> cells=new ArrayList<Integer>();
+  for(int r=1;r<=9;r++) for(int c=0;c<=6;c++) {
+    if(r==1 && (c==0 || c==6)) continue;
+    if(c==6 && r==coverRow) continue;
+    cells.add(r*13+c);
+  }
+  java.util.Collections.shuffle(cells,rng);
+  int target=48+rng.nextInt(7), blocks=1, hard=0;
+  for(int id:cells) {
+    if(blocks>=target) break;
+    int c=id%13,r=id/13,mirror=12-c,n=c==mirror?1:2;
+    int roll=rng.nextInt(100);
+    int kind=roll<64 || hard+n>16 ? 1 : roll<86 ? 2 : 3;
+    macro(c,r,kind); macro(mirror,r,kind);
+    if(validRoads()) { blocks+=n; if(kind!=1) hard+=n; }
+    else { macro(c,r,0); macro(mirror,r,0); }
+  }
+  for(int r=2;r<=9;r++) for(int c=0;c<=6;c++) {
+    if(floorCell(c,r) && rng.nextFloat()<0.13f) {
+      macro(c,r,4); macro(12-c,r,4);
+    }
+  }
+}
+boolean floorCell(int c,int r) {
+  if(c<0 || c>12 || r<0 || r>12 || (hasBase() && c==6 && r==12)) return false;
+  for(int y=r*2;y<r*2+2;y++) for(int x=c*2;x<c*2+2;x++)
+    if(map[y][x]>=1 && map[y][x]<=3) return false;
+  return true;
+}
+int[] roadDistances(int sx,int sy,int minCol,int maxCol) {
+  int[] distance=new int[169],queue=new int[169];
+  java.util.Arrays.fill(distance,-1);
+  if(!floorCell(sx,sy)) return distance;
+  int head=0,tail=0,start=sy*13+sx;
+  distance[start]=0; queue[tail++]=start;
+  while(head<tail) {
+    int u=queue[head++];
+    for(int d=0;d<4;d++) {
+      int x=u%13+DX[d],y=u/13+DY[d];
+      if(x<minCol || x>maxCol || !floorCell(x,y)) continue;
+      int v=y*13+x;
+      if(distance[v]<0) { distance[v]=distance[u]+1; queue[tail++]=v; }
+    }
+  }
+  return distance;
+}
+boolean validRoads() {
+  int[] all=roadDistances(4,12,0,12);
+  for(int r=0;r<13;r++) for(int c=0;c<13;c++)
+    if(floorCell(c,r) && all[r*13+c]<0) return false;
+  if(all[0]<0 || all[6]<0 || all[12]<0 || all[10*13+6]<0) return false;
+  int left=roadDistances(0,0,0,5)[11*13+4];
+  int right=roadDistances(12,0,7,12)[11*13+8];
+  return left>=0 && left<=23 && right==left;
+}
+
+void macro(int c,int r,int value) {
+  for(int y=r*2;y<r*2+2;y++) for(int x=c*2;x<c*2+2;x++) map[y][x]=value;
+}
+void baseWall(int kind) {
+  for(int x=11;x<=14;x++) map[23][x]=kind;
+  for(int y=24;y<26;y++) { map[y][11]=kind; map[y][14]=kind; }
+}
+void announce(String s) { message=s; bannerTimer=2.2f; }
+void addScore(int n) {
+  score+=n; best=max(best,score);
+  if(score>=nextLife) { lives++; nextLife+=10000; announce("BONUS LIFE"); }
+}
+
+boolean canStand(Tank who,float x,float y) {
+  float r=5.8f;
+  if(x-r<0 || y-r<0 || x+r>WORLD || y+r>WORLD) return false;
+  if(hasBase() && abs(x-104)<r+8 && abs(y-200)<r+8) return false;
+  for(int yy=(int)((y-r)/TILE);yy<=(int)((y+r-0.01f)/TILE);yy++)
+    for(int xx=(int)((x-r)/TILE);xx<=(int)((x+r-0.01f)/TILE);xx++)
+      if(map[yy][xx]==1 || map[yy][xx]==2 || map[yy][xx]==3) return false;
+  if(player!=null && player!=who && player.alive && abs(x-player.x)<12 && abs(y-player.y)<12) return false;
+  if(player2!=null && player2!=who && player2.alive && abs(x-player2.x)<12 && abs(y-player2.y)<12) return false;
+  for(Tank t:enemies) if(t!=who && t.alive && abs(x-t.x)<12 && abs(y-t.y)<12) return false;
+  return true;
+}
+
+
+// Roles: assault, flanker/hunter, siege. Perception is not omniscient.
+void updateEnemy(Tank t,float dt) {
+  t.cool=max(0,t.cool-dt); t.memory=max(0,t.memory-dt);
+  t.senseTimer-=dt; t.rest=max(0,t.rest-dt);
+  if(t.shield>0) { t.intent="SPAWN"; return; }
+  if(t.senseTimer<=0) {
+    t.senseTimer=0.22f+(t.type==2?0.12f:0);
+    if(seesPlayer(t)) { t.seenX=player.x; t.seenY=player.y; t.memory=2.5f; }
+  }
+  if(t.rest>0) return;
+  boolean centered=abs(t.x-t.tx)<0.01f && abs(t.y-t.ty)<0.01f;
+  int dodge=centered && gameTime>=t.nextDodge ? dodgeDirection(t) : -1;
+  if(dodge>=0) {
+    setWaypoint(t,dodge); t.nextDodge=gameTime+1.4f;
+    t.aimDir=-1; t.intent="EVADE"; centered=false;
+  }
+  int shot=t.intent.equals("EVADE") && !centered ? -1 : aimedShot(t);
+  if(shot>=0 && shotReady(t)) {
+    if(t.aimDir!=shot) { t.aimDir=shot; t.aimTimer=enemyAimTime(t); }
+    t.dir=shot; t.intent="AIM"; t.aimTimer-=dt;
+    if(t.aimTimer<=0) { fire(t); t.aimDir=-1; t.rest=0.10f; }
+    return;
+  }
+  t.aimDir=-1;
+  if(centered) {
+    int index=constrain((int)(t.y/16),0,12)*13+constrain((int)(t.x/16),0,12);
+    t.visits[index]=min(8,t.visits[index]+1);
+    chooseGoal(t);
+    int d=routeDirection(t);
+    if(d>=0) setWaypoint(t,d);
+  }
+  float remain=abs(t.tx-t.x)+abs(t.ty-t.y);
+  if(remain<0.01f) return;
+  t.dir=abs(t.tx-t.x)>0.01f ? (t.tx>t.x?1:3) : (t.ty>t.y?2:0);
+  float speed=enemyMoveSpeed(t);
+  float step=min(speed*dt,remain);
+  float nx=t.x+DX[t.dir]*step,ny=t.y+DY[t.dir]*step;
+  if(canStand(t,nx,ny)) { t.x=nx; t.y=ny; t.stuck=0; }
+  else {
+    t.stuck+=dt;
+    if(brickAhead(t) && shotReady(t)) { t.intent="BREACH"; fire(t); }
+    if(t.stuck>0.8f && !brickAhead(t)) {
+      if(abs(t.x-t.fx)+abs(t.y-t.fy)>0.1f) { t.tx=t.fx; t.ty=t.fy; }
+      else { t.tx=t.x; t.ty=t.y; t.visits[constrain((int)(t.y/16),0,12)*13+constrain((int)(t.x/16),0,12)]=8; }
+      t.stuck=0; t.rest=0.12f;
+    }
+  }
+}
+void setWaypoint(Tank t,int d) {
+  t.dir=d; t.fx=t.x; t.fy=t.y;
+  t.tx=t.x+DX[d]*16; t.ty=t.y+DY[d]*16;
+}
+boolean brickAhead(Tank t) {
+  int x=(int)((t.x+DX[t.dir]*8)/8), y=(int)((t.y+DY[t.dir]*8)/8);
+  return x>=0 && x<N && y>=0 && y<N && map[y][x]==1;
+}
+boolean seesPlayer(Tank t) {
+  if(player==null || !player.alive || player.shield>0) return false;
+  int cx=constrain((int)(player.x/8),0,25),cy=constrain((int)(player.y/8),0,25);
+  if(map[cy][cx]==4 && gameTime-lastPlayerShot>0.8f) return false;
+  return dist(t.x,t.y,player.x,player.y)<=112 && clearRay(t.x,t.y,player.x,player.y,false);
+}
+boolean clearRay(float x,float y,float ex,float ey,boolean breach) {
+  int steps=max(1,(int)(dist(x,y,ex,ey)/2));
+  for(int i=1;i<steps;i++) {
+    int cx=constrain((int)(lerp(x,ex,i/(float)steps)/8),0,25);
+    int cy=constrain((int)(lerp(y,ey,i/(float)steps)/8),0,25);
+    if(map[cy][cx]==2 || (!breach && map[cy][cx]==1)) return false;
+  }
+  return true;
+}
+int alignedDirection(float x,float y,float ex,float ey) {
+  if(abs(x-ex)<4 && abs(y-ey)>6) return ey>y?2:0;
+  if(abs(y-ey)<4 && abs(x-ex)>6) return ex>x?1:3;
+  return -1;
+}
+boolean friendlyInLane(Tank t,float ex,float ey) {
+  for(Tank q:enemies) if(q!=t && q.alive) {
+    if(abs(ex-t.x)<4 && abs(q.x-t.x)<8 && (q.y-t.y)*(q.y-ey)<0) return true;
+    if(abs(ey-t.y)<4 && abs(q.y-t.y)<8 && (q.x-t.x)*(q.x-ex)<0) return true;
+  }
+  return false;
+}
+int aimedShot(Tank t) {
+  if(t.memory>0 && seesPlayer(t)) {
+    int d=alignedDirection(t.x,t.y,player.x,player.y);
+    if(d>=0 && !friendlyInLane(t,player.x,player.y)) return d;
+  }
+  int d=alignedDirection(t.x,t.y,104,200);
+  if(d>=0 && dist(t.x,t.y,104,200)<73 && clearRay(t.x,t.y,104,200,true)
+      && !friendlyInLane(t,104,200)) return d;
+  return -1;
+}
+boolean incoming(Bullet b,float x,float y,float range) {
+  if(!b.alive || b.enemy) return false;
+  float along=(x-b.x)*DX[b.dir]+(y-b.y)*DY[b.dir];
+  float across=abs((x-b.x)*DY[b.dir]-(y-b.y)*DX[b.dir]);
+  return along>0 && along<range && across<8 && clearRay(b.x,b.y,x,y,false);
+}
+int dodgeDirection(Tank t) {
+  for(Bullet b:bullets) if(incoming(b,t.x,t.y,44)) {
+    int best=-1; float value=-10000;
+    for(int i=0;i<2;i++) {
+      int d=(b.dir+(i==0?1:3))%4;
+      float x=t.x+DX[d]*16,y=t.y+DY[d]*16;
+      if(!canStand(t,x,y)) continue;
+      float v=-abs(x-t.lane*16-8)*0.05f;
+      for(Bullet other:bullets) if(incoming(other,x,y,80)) v-=100;
+      if(v>value) { value=v; best=d; }
+    }
+    if(best>=0) return best;
+  }
+  return -1;
+}
+void chooseGoal(Tank t) {
+  int c=constrain((int)(t.x/16),0,12),r=constrain((int)(t.y/16),0,12);
+  if(t.type==1 && t.memory>0) {
+    t.goalX=constrain((int)(t.seenX/16),0,12);
+    t.goalY=constrain((int)(t.seenY/16),0,12);
+    if(seesPlayer(t)) {
+      int nx=t.goalX+DX[player.dir],ny=t.goalY+DY[player.dir];
+      if(floorCell(nx,ny)) { t.goalX=nx; t.goalY=ny; }
+    }
+    t.intent="HUNT"; return;
+  }
+  if(t.phase==0 && r>=5) t.phase=1;
+  if(t.phase==1 && r>=9) t.phase=2;
+  if(t.phase<2) {
+    t.goalX=t.type==1 ? (t.lane<6?1:11) : t.lane;
+    t.goalY=t.phase==0?5:9;
+    t.intent=t.type==1?"FLANK":"ADVANCE";
+  } else {
+    t.goalX=t.type==1 ? (t.lane<6?4:8) : 6;
+    t.goalY=t.type==1 ? 12 : 11;
+    t.intent=t.type==2?"SIEGE":"ASSAULT";
+  }
+  if(cellWeight(t.goalX,t.goalY)<0) {
+    int bx=t.goalX,by=t.goalY; float value=100000;
+    for(int y=1;y<12;y++) for(int x=0;x<13;x++) if(floorCell(x,y)) {
+      float v=abs(x-bx)+abs(y-by)+0.02f*(abs(c-x)+abs(r-y));
+      if(v<value) { value=v; t.goalX=x; t.goalY=y; }
+    }
+  }
+  if(c==t.goalX && r==t.goalY && t.phase<2) { t.phase++; chooseGoal(t); }
+}
+// Route between tactical goals using traffic, exposure, danger and lane costs.
+int routeDirection(Tank t) {
+  int sx=constrain((int)(t.x/16),0,12),sy=constrain((int)(t.y/16),0,12);
+  int target=t.goalY*13+t.goalX,start=sy*13+sx;
+  if(start==target) return -1;
+  float[] cost=new float[169]; boolean[] done=new boolean[169]; int[] first=new int[169];
+  java.util.Arrays.fill(cost,100000); java.util.Arrays.fill(first,-1); cost[start]=0;
+  for(int n=0;n<169;n++) {
+    int u=-1;
+    for(int i=0;i<169;i++) if(!done[i] && (u<0 || cost[i]<cost[u])) u=i;
+    if(u<0 || cost[u]>=100000) break;
+    if(u==target) return first[u];
+    done[u]=true;
+    for(int k=0;k<4;k++) {
+      int d=(k+t.bias)%4,x=u%13+DX[d],y=u/13+DY[d];
+      if(x<0 || x>12 || y<0 || y>12 || (x==6 && y==12)) continue;
+      int w=cellWeight(x,y); if(w<0) continue;
+      int v=y*13+x; float px=x*16+8,py=y*16+8;
+      float edge=1+(w>1?(t.type==2?1.8f:4.2f):0);
+      edge+=abs(x-t.lane)*(t.phase<2?0.13f:0.02f)+t.visits[v]*0.24f;
+      edge+=((v*17+t.bias*31)%11)*0.025f;
+      if(u==start && d!=t.dir) edge+=0.2f;
+      for(Tank q:enemies) if(q!=t && q.alive &&
+        ((abs(q.x-px)<13 && abs(q.y-py)<13) || (abs(q.tx-px)<2 && abs(q.ty-py)<2))) edge+=14;
+      for(Bullet b:bullets) if(incoming(b,px,py,96)) edge+=18;
+      if(t.memory>0 && alignedDirection(px,py,t.seenX,t.seenY)>=0
+         && clearRay(px,py,t.seenX,t.seenY,false)) edge+=t.type==1?3.0f:0.8f;
+      float alt=cost[u]+edge;
+      if(alt<cost[v]) { cost[v]=alt; first[v]=u==start?d:first[u]; }
+    }
+  }
+  for(int k=0;k<4;k++) {
+    int d=(k+t.bias)%4;
+    if(canStand(t,t.x+DX[d]*16,t.y+DY[d]*16)) return d;
+  }
+  return -1;
+}
+
+
+
+boolean wallAhead(Tank t) {
+  int x=constrain((int)((t.x+DX[t.dir]*9)/8),0,25);
+  int y=constrain((int)((t.y+DY[t.dir]*9)/8),0,25);
+  return map[y][x]==1 || map[y][x]==2;
+}
+int cellWeight(int x,int y) {
+  int w=1;
+  for(int r=y*2;r<y*2+2;r++) for(int c=x*2;c<x*2+2;c++) {
+    if(map[r][c]==2 || map[r][c]==3) return -1;
+    if(map[r][c]==1) w=4;
+  }
+  return w;
+}
+
+boolean hitTank(Bullet b,Tank t) { return abs(b.x-t.x)<6.5f && abs(b.y-t.y)<6.5f; }
+
+void fail(String why) { state=LOST; message=why; bannerTimer=99; clearKeys(); }
+void dropPower() {
+  for(int attempt=0;attempt<100;attempt++) {
+    float x=8+16*(int)random(13), y=8+16*(int)random(3,12);
+    if(canStand(null,x,y)) { powers.add(new Power(x,y,(int)random(6))); return; }
+  }
+}
+
+void clearUnderTank(Tank t) {
+  for(int y=max(0,(int)((t.y-6)/8));y<=min(25,(int)((t.y+5.9f)/8));y++)
+    for(int x=max(0,(int)((t.x-6)/8));x<=min(25,(int)((t.x+5.9f)/8));x++)
+      if((y==23 && x>=11 && x<=14) || (y>=24 && (x==11 || x==14))) map[y][x]=0;
+}
+void burst(float x,float y,int count,int c) {
+  for(int i=0;i<count;i++) effects.add(new Spark(x,y,c));
+}
+class Tank {
+  float x,y,tx,ty,fx,fy,cool=0,shield=0,stuck=0;
+  int dir=0,type,hp,level=0,chassis=0,maxHP=1; boolean enemy,alive=true;
+  float stun=0; boolean boss=false;
+  int lane=3,phase=0,goalX=6,goalY=11,bias=0,aimDir=-1;
+  float seenX=0,seenY=0,memory=0,senseTimer=0,aimTimer=0,rest=0,nextDodge=0;
+  int[] visits=new int[169];
+  String intent="ADVANCE";
+  Tank(float x,float y,boolean enemy,int type) {
+    this.x=x; this.y=y; tx=fx=x; ty=fy=y; this.enemy=enemy; this.type=type;
+    hp=type==2 ? 3 : 1; maxHP=hp; dir=enemy ? 2 : 0; bias=(int)random(4);
+  }
+}
+class Bullet {
+  float x,y; int dir,power; boolean enemy,alive=true; Tank owner;
+  Bullet(Tank t) {
+    owner=t; dir=t.dir; enemy=t.enemy; power=t.level;
+    x=t.x+DX[dir]*6; y=t.y+DY[dir]*6;
+  }
+}
+class Spark {
+  float x,y,vx,vy,life,maxLife; int c;
+  Spark(float x,float y,int c) {
+    this.x=x; this.y=y; this.c=c;
+    vx=random(-25,25); vy=random(-25,25); life=maxLife=random(0.12f,0.5f);
+  }
+}
+class Power {
+  float x,y,ttl=20; int kind;
+  Power(float x,float y,int kind) { this.x=x; this.y=y; this.kind=kind; }
+}
+
+// ---------- PIXEL ART / UI (no image or font files needed) ----------
+String fontChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:-./+!?<>=*";
+String[] fontBits = {
+  "010101111101101","110101110101110","011100100100011","110101101101110",
+  "111100110100111","111100110100100","011100101101011","101101111101101",
+  "111010010010111","001001001101010","101101110101101","100100100100111",
+  "101111111101101","101111111111101","010101101101010","110101110100100",
+  "010101101111011","110101110101101","011100010001110","111010010010010",
+  "101101101101111","101101101101010","101101111111101","101101010101101",
+  "101101010010010","111001010100111","111101101101111","010110010010111",
+  "110001010100111","110001010001110","101101111001001","111100110001110",
+  "011100111101111","111001010010010","111101111101111","111101111001110",
+  "000010000010000","000000111000000","000000000000010","001001010100100",
+  "000010111010000","010010010000010","110001010000010","001010100010001",
+  "100010001010100","000111000111000","101010111010101"
+};
+
+void pixelText(String s, float x, float y, int scale, int ink) {
+  g.noStroke(); g.fill(ink); s = s.toUpperCase();
+  for (int i=0; i<s.length(); i++) {
+    int n=fontChars.indexOf(s.charAt(i));
+    if (n<0) continue;
+    String bits=fontBits[n];
+    for (int p=0; p<15; p++) if (bits.charAt(p)=='1')
+      g.rect(round(x)+(i*4+p%3)*scale, round(y)+(p/3)*scale, scale, scale);
+  }
+}
+void centered(String s, float y, int scale, int ink) {
+  pixelText(s, (352-(s.length()*4-1)*scale)/2.0f, y, scale, ink);
+}
+void box(float x,float y,float w,float h,int ink) {
+  g.noStroke();g.fill(ink);g.rect(x,y,w,1);g.rect(x,y+h-1,w,1);
+  g.rect(x,y,1,h);g.rect(x+w-1,y,1,h);
+}
+void corners(float x,float y,float w,float h,int ink) {
+  g.fill(ink);g.noStroke();
+  for(int a=0;a<2;a++) for(int b=0;b<2;b++) {
+    float px=x+a*(w-2), py=y+b*(h-2);
+    g.rect(px-(a==1?6:0),py,8,2);g.rect(px,py-(b==1?6:0),2,8);
+  }
+}
+
+
+
+
+
+void tankSpriteBuiltin(float x,float y,int dir,boolean enemy,int type,int hp) {
+  g.pushMatrix();g.translate(round(x),round(y));g.rotate(dir*HALF_PI);
+  int hull=enemy?STEEL:YELLOW,light=enemy?PALE:0xffd4bc81;
+  g.fill(DARK);g.rect(-7,-6,14,13);
+  g.fill(GRAY);g.rect(-6,-5,3,11);g.rect(3,-5,3,11);
+  int phase=((int)(gameTime*9))%2;
+  g.fill(light);for(int i=-5+phase;i<5;i+=3){g.rect(-6,i,2,1);g.rect(4,i,2,1);}
+  g.fill(hull);g.rect(-3,-4,6,9);g.rect(-4,-2,8,4);
+  g.fill(light);g.rect(-3,-4,6,1);g.rect(-2,-2,4,3);
+  g.fill(hull);g.rect(-1,-8,2,7);g.fill(light);g.rect(-1,-8,1,5);
+  g.fill(DARK);g.rect(-1,1,2,2);
+  if(enemy && type==2){g.fill(YELLOW);g.rect(-3,3,max(1,hp)*2,1);}
+  if(enemy && type==1){g.fill(DARK);g.rect(-3,3,6,1);}
+  g.popMatrix();
+}
+void drawEagleBuiltin(float x,float y,int ink) {
+  String[] eagle={"100000010000001","111000111000111","111111111111111","011111111111110","001111111111100","000011111110000","000000111000000","000001111100000","000010101010000"};
+  g.fill(ink);for(int r=0;r<eagle.length;r++)for(int c=0;c<15;c++)
+    if(eagle[r].charAt(c)=='1')g.rect(round(x)-7+c,round(y)-4+r,1,1);
+}
+
+
+
+
+
+
+
+
+
+
+
+// Three equally priced chassis. Each trades armor, mobility and fire rate.
+final String[] TANK_NAMES={"VANGUARD","RANGER","BASTION"};
+final String[] SKILL_NAMES={"EMP","BOOST","BUNKER"};
+final int[] TANK_HP={2,1,3};
+final float[] TANK_SPEED={44,56,32};
+final float[] TANK_RELOAD={0.32f,0.36f,0.42f};
+final float[] TANK_FAST_RELOAD={0.20f,0.23f,0.27f};
+final float[] SKILL_COOLDOWN={18,14,24};
+int selectedTank=0,repairKits=1,waveNumber=1;
+float skillCD=0,skillActive=0,empRing=0,reliefTimer=0,baseGuard=0,intermission=0;
+
+
+
+
+
+
+void hitPlayer() {
+  if(player==null || !player.alive || player.shield>0) return;
+  player.hp--; burst(player.x,player.y,7,YELLOW);
+  if(player.hp>0) { player.shield=1.0f; announce("ARMOR HIT - "+player.hp+" HP"); return; }
+  player.alive=false; lives--; skillActive=0;
+  skillCD=max(skillCD,8); reliefTimer=3;
+  for(Bullet b:bullets) if(b.enemy) b.alive=false;
+  if(lives<=0) fail("NO TANKS LEFT");
+  else { respawnTimer=1.2f; spawnTimer=max(spawnTimer,4); announce("REDEPLOYING - COVER PROVIDED"); }
+}
+void damageBase() {
+  if(!baseAlive || baseGuard>0) return;
+  baseHP=max(0,baseHP-1); baseFlash=0.8f; baseGuard=1.25f;
+  burst(104,200,baseHP==0?24:10,YELLOW);
+  if(baseHP==0) { baseAlive=false; fail("BASE DESTROYED"); }
+  else announce("BASE HIT - "+baseHP+" HP / E REPAIR");
+}
+
+
+
+
+
+
+
+
+
+void cardText(String text,int x,int y,int ink) {
+  pixelText(text,x+(108-text.length()*4+1)/2,y,1,ink);
+}
+
+
+
+
+
+// Rendering only. These details never change collision, maps or game randomness.
+int artHash(int x,int y,int salt) {
+  int n=x*73856093 ^ y*19349663 ^ salt*83492791;
+  n^=n>>>13; return n&0x7fffffff;
+}
+void displayText(String s,float x,float y,int scale,int ink) {
+  String chars="WARZONE0123456789:";
+  String[] glyphs={
+    "10001100011000110101101011101110001",
+    "01110110111101111111110111101111011",
+    "11110110111101111110111001101011011",
+    "11111000110011001100110001100011111",
+    "01110110111101111011110111101101110",
+    "11011110111111111111111111101111011",
+    "11111110001100011110110001100011111",
+    "01110110111101111011110111101101110",
+    "00100011000010000100001000010001110",
+    "11110000110001101110110001100011111",
+    "11110000110001101110000110001111110",
+    "11011110111101111111000110001100011",
+    "11111110001100011110000110001111110",
+    "01111110001100011110110111101101110",
+    "11111000110011000110011000110001100",
+    "01110110111101101110110111101101110",
+    "01110110111101101111000110001111110",
+    "00000011000110000000011000110000000"
+  };
+  g.noStroke();g.fill(ink);
+  for(int i=0;i<s.length();i++) {
+    int k=chars.indexOf(s.charAt(i));if(k<0)continue;
+    String b=glyphs[k];
+    for(int p=0;p<35;p++)if(b.charAt(p)=='1')g.rect(x+(i*6+p%5)*scale,y+(p/5)*scale,scale,scale);
+  }
+}
+void hazard(float x,float y,int h,int ink) {
+  g.noStroke();g.fill(ink);
+  for(int i=0;i<h-4;i+=8)for(int j=0;j<3;j++)g.rect(x+j,y+i+3-j,1,3);
+}
+void panelFace(float x,float y,float w,float h) {
+  g.noStroke();g.fill(0xff1C2021);g.rect(x,y,w,h);
+  g.fill(0xff292E2E);g.rect(x+2,y+2,w-4,14);
+  g.fill(0xff222728);g.rect(x+2,y+16,w-4,10);
+  box(x,y,w,h,0xff4A5050);box(x+2,y+2,w-4,h-4,0xff303536);
+  g.fill(STEEL);g.rect(x+3,y+3,1,1);g.rect(x+w-4,y+h-4,1,1);
+}
+void uiButton(String label,int x,int y,int w,int h) {
+  boolean hot=label.indexOf("READY")>=0 || label.indexOf("DEPLOY")>=0;
+  panelFace(x,y,w,h);g.fill(hot?YELLOW:GRAY);g.rect(x,y,3,h);
+  g.fill(DARK);g.rect(x+w-4,y,4,2);g.rect(x+w-2,y+2,2,2);
+  g.fill(hot?YELLOW:STEEL);g.rect(x+4,y+h-2,w-9,1);
+  pixelText(label,x+(w-label.length()*4+1)/2,y+(h-5)/2,1,hot?PALE:STEEL);
+}
+void streetFloor() {
+  g.noStroke();g.fill(0xff202629);g.rect(0,0,WORLD,WORLD);
+  for(int i=0;i<510;i++) {
+    int x=artHash(i,1,mapSeed)%208,y=artHash(i,2,mapSeed)%208;
+    int shade=artHash(i,3,mapSeed)%5;
+    g.fill(shade==0?0xff303638:shade==1?0xff181E21:0xff252C2F);
+    g.rect(x,y,1+artHash(i,4,mapSeed)%3,1);
+  }
+  // Rain-dark asphalt, broken lane paint and subdued sign reflections.
+  for(int y=8;y<208;y+=13) {
+    g.fill(0xff353A35);g.rect(3,y,5,1);g.rect(200,y+3,5,1);
+    g.fill(0xff454239);g.rect(1,y+1,3,1);g.rect(204,y+4,3,1);
+  }
+  for(int y=166;y<205;y+=9) {
+    g.fill(0xff41433B);g.rect(47,y,1,4);g.rect(160,y,1,4);
+  }
+  for(int x:new int[]{0,96,192}) {
+    g.fill(0xff2D3334);g.rect(x,0,16,16);
+    hazard(x,1,15,0xff8F7946);hazard(x+13,1,15,0xff8F7946);
+  }
+  // Base apron and repair bay markings, all passable decoration.
+  g.fill(0xff292E2B);g.rect(88,184,32,24);box(90,186,28,22,0xff4C4B3D);
+  for(int x:new int[]{64,128}) {
+    box(x,192,16,16,0xff45483E);
+    g.fill(0xff696043);for(int i=0;i<3;i++)g.rect(x+3+i*4,205,2,1);
+  }
+}
+void tileSpriteBuiltin(int x,int y,int kind) {
+  int px=x*8,py=y*8,h=artHash(x,y,17);
+  if(kind==1) {
+    g.fill(0xff685033);g.rect(px,py,8,8);
+    for(int c=0;c<2;c++) {
+      int bx=px+c*4,by=py;
+      g.fill((h>>c&1)==0?0xffD99E40:0xffC88C32);g.rect(bx,by,3,3);
+      g.fill(0xffFFE09A);g.rect(bx,by,3,1);
+      g.fill(0xff9C6528);g.rect(bx,by+2,3,1);
+      if((h+c)%4==0){g.fill(0xffAD7936);g.rect(bx+2,by+1,1,1);}
+    }
+    g.fill(0xffD99E40);g.rect(px,py+4,1,3);g.rect(px+2,py+4,3,3);g.rect(px+6,py+4,2,3);
+    g.fill(0xffFFE09A);g.rect(px,py+4,1,1);g.rect(px+2,py+4,3,1);g.rect(px+6,py+4,2,1);
+    g.fill(0xff9C6528);g.rect(px,py+6,1,1);g.rect(px+2,py+6,3,1);g.rect(px+6,py+6,2,1);
+    g.fill(0xff382D22);g.rect(px,py+7,8,1);
+  } else if(kind==2) {
+    g.fill(0xff4C5455);g.rect(px,py,8,8);
+    g.fill(0xffB7BBBA);g.rect(px,py,7,7);
+    g.fill(0xffE1DFCD);g.rect(px,py,7,1);g.rect(px,py,1,7);
+    g.fill(0xff7F898C);g.rect(px+5,py+1,2,6);g.rect(px+1,py+5,6,2);
+    g.fill(0xff323A3C);g.rect(px+3,py+3,2,2);
+    g.fill(0xffD1D2C4);g.rect(px+3,py+2,2,1);
+    if(h%3==0){g.fill(0xffA0ABA9);g.rect(px+1,py+2,2,1);}
+  } else if(kind==3) {
+    g.fill(0xff3D4B52);g.rect(px,py,8,8);
+    int phase=((int)(gameTime*2)+x)%2;
+    g.fill(0xff91958B);g.rect(px,py+2+phase,3,1);g.rect(px+3,py+3+phase,3,1);g.rect(px+6,py+2+phase,2,1);
+    g.fill(0xffD6BF71);g.rect(px+1,py+2+phase,2,1);g.rect(px+4,py+6,3,1);
+    g.fill(0xff354246);g.rect(px,py+7,4,1);
+  } else if(kind==4) {
+    g.fill(0xff505D3E);g.rect(px+1,py,5,3);g.rect(px,py+3,8,3);g.rect(px+2,py+6,5,2);
+    g.fill(0xff8C9254);g.rect(px+2,py+1,2,2);g.rect(px+5,py+4,2,2);g.rect(px+1,py+5,2,1);
+    g.fill(0xffC4B56A);g.rect(px+2,py+1,1,1);g.rect(px+6,py+4,1,1);
+    g.fill(0xff28362F);g.rect(px+1,py+3,2,2);g.rect(px+5,py+1,2,1);
+  }
+}
+void cityEdges() {
+  g.noStroke();
+  for(int side=0;side<2;side++) {
+    int x=side==0?5:234;
+    g.fill(0xff141C20);g.rect(x,30,15,213);
+    for(int i=0;i<13;i++) {
+      int y=32+i*16,h=artHash(i,side,31);
+      g.fill(i%3==0?0xff4B5558:0xff394448);g.rect(x,y,14,15);
+      g.fill(0xff939B9D);g.rect(x,y,14,1);g.rect(x, y,1,15);
+      g.fill(0xff202B30);g.rect(x+2,y+2,10,12);
+      for(int row=0;row<2;row++)for(int col=0;col<3;col++) {
+        g.fill((h+row*3+col)%4==0?0xffF3BD4A:0xff555C56);
+        g.rect(x+3+col*3,y+3+row*5,2,3);
+        g.fill(0xff242C2E);g.rect(x+3+col*3,y+4+row*5,2,1);
+      }
+      g.fill(0xffA5A9A3);g.rect(x+1,y+12,12,1);
+      if(i%4==2) {
+        g.fill(0xff20282B);g.rect(x+6,y,7,4);g.rect(x+9,y+4,5,3);
+        g.fill(0xff7E8580);g.rect(x+5,y,2,2);g.rect(x+8,y+4,2,1);
+      }
+      g.fill(0xff192329);g.rect(x+11,y+6,2,5);
+    }
+    g.fill(0xff76807B);g.rect(x+1,114,13,2);g.rect(x+2,116,3,3);
+    g.fill(0xff343E40);g.rect(x+1,118,13,1);
+    citySign(x-1,60,side==0?0:2,side==0?1:3);
+    citySign(x,161,4,-1);
+    for(int y=127;y<154;y+=4) {
+      int dx=artHash(y,side,12)%9;g.fill(0xff5A6261);g.rect(x+dx,y,3,2);
+      g.fill(0xff2B3538);g.rect(x+dx+2,y+2,4,2);
+    }
+  }
+}
+void citySign(int x,int y,int first,int second) {
+  int h=second<0?17:29;
+  g.fill(0xff141A1D);g.rect(x-1,y-1,18,h+2);
+  g.fill(0xffA17A35);g.rect(x,y,16,h);g.fill(0xff2C2B24);g.rect(x+2,y+2,12,h-4);
+  g.fill(0xffF4C65B);g.rect(x,y,1,h);g.rect(x+1,y,14,1);
+  chineseGlyph(x+4,y+4,first);
+  if(second>=0)chineseGlyph(x+4,y+16,second);
+  g.fill(0xffFFE4A0);g.rect(x+3,y+h-2,2,1);
+}
+void chineseGlyph(int x,int y,int kind) {
+  String[][] glyph={
+    {"001000000","001000000","111111000","001001000","001001000","010001000","010001001","100001001","100000110"},
+    {"010010110","111110010","010011110","111110010","101010110","111110010","101011110","111110010","101011110"},
+    {"111111111","000010000","111111111","101010101","111111111","001111100","001010100","001111101","000011111"},
+    {"111000111","101000101","111010111","000010000","111111111","001010100","110000011","101000101","111000111"},
+    {"010000010","111111111","010000010","000010000","000101000","001010100","110010011","000010000","001010100"}
+  };
+  g.fill(PALE);for(int r=0;r<9;r++)for(int c=0;c<9;c++)if(glyph[kind][r].charAt(c)=='1')g.rect(x+c,y+r,1,1);
+}
+void playerSpriteBuiltin(float x,float y,int dir,int chassis) {
+  g.pushMatrix();g.translate(round(x),round(y));g.rotate(dir*HALF_PI);g.noStroke();
+  int wide=chassis==1?5:chassis==2?7:6;
+  g.fill(0xff11191C);g.rect(-wide-1,-6,wide*2+2,14);
+  for(int s:new int[]{-1,1}) {
+    int tx=s<0?-wide:wide-2;
+    g.fill(0xff737F80);g.rect(tx,-5,2,11);
+    for(int r=-5;r<6;r+=3){g.fill(0xffC7C7AC);g.rect(tx,r,2,1);g.fill(0xff303C40);g.rect(tx,r+1,2,1);}
+  }
+  g.fill(0xffC69339);g.rect(-wide+2,-5,wide*2-4,11);g.rect(-wide+1,-2,wide*2-2,5);
+  g.fill(0xffF6D986);g.rect(-wide+2,-5,wide*2-4,1);
+  g.fill(YELLOW);g.rect(-wide+2,-3,1,5);g.rect(wide-3,-3,1,5);
+  g.fill(0xff333E40);g.rect(-3,-3,6,6);
+  g.fill(0xffE5C978);g.rect(-3,-3,6,1);g.rect(-3,-2,1,4);
+  g.fill(0xffA6803D);g.rect(-2,-2,4,3);
+  g.fill(0xffE7DDBA);g.rect(-1,-8,chassis==2?3:2,6);
+  g.fill(0xff3A494D);g.rect(0,-7,1,5);g.fill(PALE);g.rect(-1,-8,2,1);
+  g.fill(YELLOW);g.rect(-2,0,4,1);
+  g.fill(0xff18272D);g.rect(-2,3,4,2);
+  g.fill(0xffF4C65D);g.rect(-2,4,1,1);g.rect(1,4,1,1);
+  if(chassis==1){g.fill(YELLOW);g.rect(-1,5,2,2);}
+  if(chassis==2){g.fill(0xffE0C980);g.rect(-5,2,2,3);g.rect(3,2,2,3);}
+  g.popMatrix();
+}
+// Front-view portraits evoke the original cover; gameplay remains top-down.
+void frontTankBuiltin(float x,float y,int chassis) {
+  g.pushMatrix();g.translate(round(x),round(y));g.noStroke();
+  int w=chassis==1?23:chassis==2?31:28;
+  g.fill(0xff121A1E);g.rect(-w-2,1,w*2+4,18);g.rect(-w+3,-3,w*2-6,20);
+  g.fill(0xff697473);g.rect(-w,2,10,14);g.rect(w-10,2,10,14);
+  g.fill(0xff303D42);g.rect(-w+1,4,8,14);g.rect(w-9,4,8,14);
+  for(int j=0;j<4;j++) {
+    g.fill(0xff92988A);g.rect(-w,3+j*4,9,1);g.rect(w-9,3+j*4,9,1);
+    g.fill(0xff53615F);g.rect(-w+2,4+j*4,5,1);g.rect(w-7,4+j*4,5,1);
+  }
+  g.fill(0xffB59A59);g.rect(-w+7,-2,w*2-14,13);g.rect(-w+11,-5,w*2-22,5);
+  g.fill(0xffEEDBA3);g.rect(-w+10,-3,w*2-20,2);
+  g.fill(0xff4B5955);g.rect(-w+10,4,w*2-20,10);
+  g.fill(0xffD0BE88);g.rect(-w+11,3,w*2-22,2);
+  g.fill(0xff344346);g.rect(-w+11,8,w*2-22,4);
+  g.fill(YELLOW);g.rect(-w+12,5,6,2);g.rect(w-18,5,6,2);
+  g.fill(0xffFFE8A8);g.rect(-w+12,5,5,1);g.rect(w-18,5,5,1);
+  int turret=chassis==1?11:chassis==2?19:16;
+  g.fill(0xff26373D);g.rect(-turret,-11,turret*2,10);g.rect(-turret+3,-14,turret*2-6,4);
+  g.fill(0xffD8CCA3);g.rect(-turret+3,-14,turret*2-6,2);g.rect(-turret,-11,3,6);
+  g.fill(0xff9C8D61);g.rect(-turret+3,-11,turret*2-6,7);
+  g.fill(0xffF4D375);g.rect(-turret+3,-6,5,2);g.rect(turret-8,-6,5,2);
+  g.fill(0xff1A2A31);g.rect(-4,-21,8,18);g.fill(0xffE8DBAB);g.rect(-4,-21,8,2);g.rect(-4,-19,2,13);
+  g.fill(0xff55695F);g.rect(-2,-19,6,14);g.fill(0xff23373C);g.rect(-2,-21,5,4);
+  g.fill(YELLOW);g.rect(-1,-20,3,1);
+  g.fill(0xff273B42);g.rect(-6,-17,2,8);g.rect(5,-16,2,7);
+  g.fill(PALE);g.rect(-6,-17,2,2);g.rect(5,-16,2,2);
+  if(chassis==2){g.fill(0xffDCD6B3);g.rect(-24,-1,6,4);g.rect(18,-1,6,4);}
+  g.popMatrix();
+}
+void portraitCity(int x,int y,int w,int h,int seed) {
+  g.pushStyle();g.clip(x,y,w,h);
+  g.fill(0xff2B363B);g.rect(x,y,w,h);
+  for(int i=0;i<w;i+=7) {
+    int bh=9+artHash(i,seed,13)%22;
+    g.fill(i%2==0?0xff3D494C:0xff232F36);g.rect(x+i,y+h-bh,6,bh);
+    for(int by=y+h-bh+3;by<y+h-3;by+=6){g.fill(0xffC0A763);g.rect(x+i+2,by,2,2);}
+  }
+  g.fill(0xff202B30);g.rect(x,y+h-7,w,7);
+  for(int i=0;i<15;i++){int px=x+artHash(i,seed,1)%w;g.fill(i%3==0?0xff817A59:0xff475957);g.rect(px,y+h-6+i%5,3+i%4,1);}
+  g.noClip();g.popStyle();
+}
+void jetSilhouette(int x,int y) {
+  g.fill(0xff16252C);g.rect(x-2,y-7,5,13);g.rect(x-9,y+1,19,3);
+  g.fill(0xffA1ACAC);g.rect(x-1,y-7,3,11);g.rect(x-5,y-1,4,4);g.rect(x+2,y-1,4,4);
+  g.fill(0xffE4DDC5);g.rect(x-9,y+1,5,1);g.rect(x+6,y+1,4,1);g.rect(x,y-7,1,3);
+  g.fill(YELLOW);g.rect(x,y-3,1,2);g.rect(x-3,y+5,2,2);g.rect(x+3,y+5,2,2);
+}
+
+
+// MODES / DIFFICULTY: fixed-step gameplay, no external libraries.
+final int ARCADE=0, VERSUS=1, ZOMBIES=2, STORY=3, BRIEF=7;
+final String[] MODE_NAMES={"SURVIVAL","2P DUEL","ZOMBIES","STORY"};
+final String[] DIFFICULTIES={"CASUAL","STANDARD","VETERAN"};
+int gameMode=ARCADE, difficulty=0, selectedTank2=1, menuPlayer=0;
+Tank player2;
+int lastDir2=2, duelRound=1, wins1=0, wins2=0;
+float skillCD2=0, skillActive2=0, empRing2=0, roundClock=90, roundWait=0;
+boolean roundOver=false, waitingObjective=false, commanderDown=false;
+int relaysDone=0;
+float relayHold=0;
+float[] relayX={40,168}, relayY={40,120};
+boolean[] relayOn={false,false};
+int P2_COLOR=0xff86C8D1, ZOMBIE_COLOR=0xffA8B36B;
+int initialLives() { return difficulty==0?6:difficulty==1?4:3; }
+boolean hasBase() { return gameMode!=VERSUS; }
+int globalWave() { return gameMode==STORY?(stage-1)*3+waveNumber:waveNumber; }
+float threat() { return min(10,max(0,globalWave()-1)); }
+float difficultyScale() { return difficulty==0?0.80f:difficulty==1?1.0f:1.17f; }
+int waveSize() {
+  int n=gameMode==ZOMBIES?8:5;
+  return min(gameMode==ZOMBIES?24:18,n+difficulty*2+(globalWave()-1)*2);
+}
+int enemyCap() {
+  int cap=gameMode==ZOMBIES?4:2;
+  cap+=difficulty+(globalWave()-1)/3;
+  cap=min(gameMode==ZOMBIES?8:5,cap);
+  if(baseHP==1) cap=max(gameMode==ZOMBIES?3:2,cap-1);
+  return cap;
+}
+float enemyMoveSpeed(Tank t) {
+  float base=gameMode==ZOMBIES?(t.type==1?34:t.type==2?18:23):(t.type==1?27:t.type==2?18:22);
+  return min(gameMode==ZOMBIES?46:42,(base+threat()*1.3f)*difficultyScale());
+}
+float enemyShotSpeed() { return min(128,(82+threat()*3.5f)*difficultyScale()); }
+float enemyReload() { return max(1.0f,(2.0f-threat()*.07f)/difficultyScale()); }
+float enemyAimTime(Tank t) { return max(.26f,(t.type==1?.50f:.66f)/difficultyScale()-threat()*.012f); }
+float spawnDelay() { return max(gameMode==ZOMBIES?.65f:1.5f,(gameMode==ZOMBIES?2.1f:4.0f)/difficultyScale()-threat()*.16f); }
+float waveBreak() { return difficulty==0?8:difficulty==1?6:4; }
+float activeFor(Tank t) { return t==player2?skillActive2:skillActive; }
+float cooldownFor(Tank t) { return t==player2?skillCD2:skillCD; }
+
+Tank createPlayer(float x,float y,int level) {
+  return createPilot(x,y,level,selectedTank);
+}
+Tank createPilot(float x,float y,int level,int chassis) {
+  Tank p=new Tank(x,y,false,0);
+  p.chassis=chassis; p.maxHP=gameMode==VERSUS?2:TANK_HP[chassis]; p.hp=p.maxHP;
+  p.level=gameMode==VERSUS?0:level; p.shield=gameMode==VERSUS?2:4;
+  return p;
+}
+void newGame() {
+  stage=1; score=0; lives=initialLives(); nextLife=10000;
+  player=null; player2=null; wins1=wins2=0; duelRound=1;
+  if(gameMode==VERSUS) startDuelRound(); else startStage();
+}
+void startStage() {
+  int level=player==null?0:player.level;
+  enemies.clear(); bullets.clear(); effects.clear(); powers.clear();
+  player2=null; baseAlive=true; baseHP=3; baseFlash=0; lastPlayerShot=-100;
+  freezeTimer=fortTimer=respawnTimer=gameTime=0;
+  skillCD=skillActive=empRing=reliefTimer=baseGuard=0;
+  skillCD2=skillActive2=empRing2=0; accumulator=0;
+  repairKits=difficulty==0?2:1; waveNumber=1;
+  relaysDone=0; relayHold=0; relayOn[0]=relayOn[1]=false;
+  relayX[0]=40;relayY[0]=40;relayX[1]=168;relayY[1]=120;
+  commanderDown=false; waitingObjective=false;
+  buildMap(); player=createPlayer(72,200,level);
+  if(gameMode==STORY && stage==2) placeRelays();
+  prepareWave(false);
+  state=gameMode==STORY?BRIEF:PLAY; clearKeys();
+}
+void prepareWave(boolean reward) {
+  spawned=killed=0; totalEnemies=waveSize(); waitingObjective=false;
+  bullets.clear();
+  intermission=waveBreak(); spawnTimer=intermission;
+  if(reward) {
+    addScore(300+globalWave()*50);
+    if(player!=null && player.alive) player.hp=min(player.maxHP,player.hp+1);
+    repairKits=min(2,repairKits+1);
+    if((waveNumber-1)%3==0) baseHP=min(3,baseHP+1);
+    announce("WAVE "+waveNumber+" - ARMOR +1 / KIT +1");
+  } else announce("WAVE 1 - GET READY");
+}
+void placeRelays() {
+  for(int i=0;i<2;i++) {
+    float bestDistance=10000,bx=40,by=40;
+    for(int r=2;r<=9;r++) for(int c=1;c<=11;c++) if(floorCell(c,r)) {
+      float x=c*16+8,y=r*16+8,d=dist(x,y,relayX[i],relayY[i]);
+      if(i==1 && dist(x,y,relayX[0],relayY[0])<48) continue;
+      if(d<bestDistance) { bestDistance=d; bx=x; by=y; }
+    }
+    relayX[i]=bx; relayY[i]=by;
+  }
+}
+void spawnEnemy() {
+  float[] xs=gameMode==ZOMBIES?new float[]{8,104,200,8,200}:new float[]{8,104,200};
+  float[] ys=gameMode==ZOMBIES?new float[]{8,8,8,104,104}:new float[]{8,8,8};
+  int first=(int)random(xs.length);
+  for(int j=0;j<xs.length;j++) {
+    int p=(first+j)%xs.length; float x=xs[p],y=ys[p];
+    if(!canStand(null,x,y)) continue;
+    if(player!=null && player.alive && dist(x,y,player.x,player.y)<32) continue;
+    int type=(spawned+globalWave())%6==0?2:spawned%3==1?1:0;
+    Tank t=new Tank(x,y,true,type);
+    t.maxHP=t.hp=type==2?(globalWave()>=7 && difficulty>0?4:3):1;
+    t.boss=gameMode==STORY && stage==3 && waveNumber==3 && spawned==totalEnemies-1;
+    if(t.boss) {t.type=2;t.maxHP=t.hp=6+difficulty*2;}
+    t.shield=1.1f;t.lane=x<50?3:x>150?9:spawned%2==0?3:9;
+    enemies.add(t);spawned++;spawnTimer=spawnDelay();return;
+  }
+  spawnTimer=.3f;
+}
+void activateSkill() { activateFor(player); }
+void activateFor(Tank p) {
+  if(state!=PLAY || p==null || !p.alive || (gameMode==VERSUS && roundOver)) return;
+  if(cooldownFor(p)>0 || p.stun>0) return;
+  boolean second=p==player2;
+  float cd=gameMode==VERSUS?12:SKILL_COOLDOWN[p.chassis];
+  float duration=0,ring=0;
+  if(p.chassis==0) {
+    ring=.55f;
+    if(gameMode==VERSUS) {
+      Tank foe=second?player:player2;
+      if(foe.alive && foe.shield<=0 && dist(p.x,p.y,foe.x,foe.y)<=70) foe.stun=.9f;
+    } else for(Tank t:enemies) if(t.alive && dist(p.x,p.y,t.x,t.y)<=80) t.stun=max(t.stun,3.5f);
+    for(Bullet b:bullets) if(b.owner!=p && (gameMode==VERSUS || b.enemy) && dist(p.x,p.y,b.x,b.y)<=96) b.alive=false;
+    p.shield=max(p.shield,gameMode==VERSUS?.5f:.8f);
+  } else if(p.chassis==1) {
+    duration=gameMode==VERSUS?2.5f:3.5f; p.shield=max(p.shield,gameMode==VERSUS?.5f:1.2f);
+  } else {duration=gameMode==VERSUS?2:5;p.shield=max(p.shield,duration);}
+  if(second) {skillCD2=cd;skillActive2=duration;empRing2=ring;}
+  else {skillCD=cd;skillActive=duration;empRing=ring;}
+  announce((second?"P2 ":"P1 ")+SKILL_NAMES[p.chassis]+" ACTIVE");
+}
+void useRepair() {
+  if(gameMode==VERSUS || state!=PLAY || player==null || !player.alive) return;
+  if(gameMode==STORY && stage==2 && nearRelay()>=0) return;
+  if(repairKits==0) {announce("NO REPAIR KIT LEFT");return;}
+  if(dist(player.x,player.y,104,200)>48) {announce("RETURN TO BASE / E REPAIR");return;}
+  if(baseHP>=3 && player.hp>=player.maxHP) return;
+  repairKits--;baseHP=min(3,baseHP+1);player.hp=min(player.maxHP,player.hp+1);
+  baseGuard=max(baseGuard,2);player.shield=max(player.shield,1.5f);
+  announce("REPAIR +1 BASE / +1 ARMOR");
+}
+int nearRelay() {
+  if(player==null || !player.alive) return -1;
+  for(int i=0;i<2;i++) if(!relayOn[i] && dist(player.x,player.y,relayX[i],relayY[i])<=18) return i;
+  return -1;
+}
+void updateRelays(float dt) {
+  if(gameMode!=STORY || stage!=2) return;
+  int relay=nearRelay();
+  if(relay>=0 && down('E')) {
+    relayHold+=dt;
+    if(relayHold>=2) {relayOn[relay]=true;relaysDone++;relayHold=0;announce("RELAY ONLINE "+relaysDone+"/2");}
+  } else relayHold=0;
+}
+void movePlayer(int d,float dt) { movePilot(player,d,dt); }
+void movePilot(Tank p,int d,float dt) {
+  if(p.stun>0) return;
+  if(p.chassis==2 && activeFor(p)>0) {p.dir=d;return;}
+  if((d%2)!=(p.dir%2)) {
+    float x=p.x,y=p.y;
+    if(d%2==0)x=round(x/8)*8;else y=round(y/8)*8;
+    if(canStand(p,x,y)){p.x=x;p.y=y;}
+  }
+  p.dir=d;
+  float speed=gameMode==VERSUS?44:TANK_SPEED[p.chassis];
+  if(p.chassis==1 && activeFor(p)>0) speed*=gameMode==VERSUS?1.4f:1.6f;
+  float nx=p.x+DX[d]*speed*dt,ny=p.y+DY[d]*speed*dt;
+  if(canStand(p,nx,ny)){p.x=nx;p.y=ny;}
+}
+boolean shotReady(Tank t) {
+  if(!t.alive || t.cool>0 || t.stun>0) return false;
+  if(t.enemy && gameMode==ZOMBIES) return false;
+  int count=0;for(Bullet b:bullets)if(b.alive && b.owner==t)count++;
+  int cap=gameMode==VERSUS?1:t.enemy?1:t.level>=2 || (t.chassis==2 && activeFor(t)>0)?2:1;
+  return count<cap;
+}
+void fire(Tank t) {
+  if(!shotReady(t))return;
+  bullets.add(new Bullet(t));
+  if(t.enemy)t.cool=enemyReload();
+  else {
+    lastPlayerShot=gameTime;
+    t.cool=gameMode==VERSUS?.35f:t.level>=1?TANK_FAST_RELOAD[t.chassis]:TANK_RELOAD[t.chassis];
+    if(t.chassis==2 && activeFor(t)>0)t.cool*=gameMode==VERSUS?.85f:.65f;
+  }
+}
+void updateBullet(Bullet b,float dt) {
+  if(!b.alive)return;
+  float speed=gameMode==VERSUS?132:b.enemy?enemyShotSpeed():b.power>=1?176:132;
+  int steps=max(1,(int)ceil(speed*dt/1.5f));
+  for(int step=0;step<steps && b.alive;step++) {
+    b.x+=DX[b.dir]*speed*dt/steps;b.y+=DY[b.dir]*speed*dt/steps;
+    if(b.x<0 || b.y<0 || b.x>=WORLD || b.y>=WORLD){b.alive=false;break;}
+    if(hasBase() && baseAlive && abs(b.x-104)<8 && abs(b.y-200)<8) {
+      b.alive=false;if(b.enemy)damageBase();break;
+    }
+    int cx=(int)(b.x/8),cy=(int)(b.y/8),tile=map[cy][cx];
+    if(tile==1 || tile==2) {
+      if(tile==1 || (!b.enemy && b.power>=3)) {
+        if(b.dir%2==0)for(int x=max(0,(int)((b.x-5)/8));x<=min(25,(int)((b.x+5)/8));x++) {
+          if(map[cy][x]==1 || (map[cy][x]==2 && b.power>=3))map[cy][x]=0;
+        }
+        else for(int y=max(0,(int)((b.y-5)/8));y<=min(25,(int)((b.y+5)/8));y++) {
+          if(map[y][cx]==1 || (map[y][cx]==2 && b.power>=3))map[y][cx]=0;
+        }
+      }
+      burst(b.x,b.y,5,tile==1?YELLOW:STEEL);b.alive=false;break;
+    }
+    for(Bullet other:bullets)if(other!=b && other.alive &&
+      (gameMode==VERSUS?other.owner!=b.owner:other.enemy!=b.enemy) && abs(b.x-other.x)<3 && abs(b.y-other.y)<3) {
+      b.alive=false;other.alive=false;burst(b.x,b.y,3,PALE);break;
+    }
+    if(!b.alive)break;
+    if(gameMode==VERSUS) {
+      Tank target=b.owner==player?player2:player;
+      if(target!=null && target.alive && hitTank(b,target)) {
+        b.alive=false;
+        if(target.shield<=0){target.hp--;target.shield=.8f;burst(target.x,target.y,7,YELLOW);if(target.hp<=0)target.alive=false;}
+      }
+    } else if(b.enemy) {
+      if(player!=null && player.alive && hitTank(b,player)){b.alive=false;hitPlayer();}
+    } else for(Tank t:enemies)if(t.alive && hitTank(b,t)) {
+      b.alive=false;
+      if(t.shield<=0){t.hp--;burst(t.x,t.y,4,PALE);if(t.hp<=0)destroyEnemy(t,true);}
+      break;
+    }
+  }
+}
+void destroyEnemy(Tank t,boolean drop) {
+  if(!t.alive)return;
+  t.alive=false;killed++;addScore(t.boss?1500:(t.type+1)*100);
+  if(t.boss)commanderDown=true;
+  burst(t.x,t.y,12,gameMode==ZOMBIES?ZOMBIE_COLOR:YELLOW);
+  if(drop && (killed%3==0 || random(1)<.08f))dropPower();
+}
+void collect(int kind) {
+  addScore(500);
+  if(kind==0){player.level=min(3,player.level+1);announce("WEAPON UPGRADE");}
+  if(kind==1){player.shield=10;announce("SHIELD 10S");}
+  if(kind==2){
+    for(Tank t:enemies)if(t.alive){if(t.boss){t.hp=max(1,t.hp-3);}else destroyEnemy(t,false);}
+    announce("AREA BLAST");
+  }
+  if(kind==3){freezeTimer=8;announce("ENEMIES FROZEN");}
+  if(kind==4){
+    baseWall(2);fortTimer=12;
+    for(Tank t:enemies)if(t.alive)clearUnderTank(t);
+    if(player!=null && player.alive)clearUnderTank(player);
+    announce("BASE FORTIFIED");
+  }
+  if(kind==5){lives=min(9,lives+1);announce("EXTRA LIFE");}
+}
+void updateZombie(Tank t,float dt) {
+  t.cool=max(0,t.cool-dt);if(t.shield>0)return;
+  boolean chase=player!=null && player.alive && dist(t.x,t.y,player.x,player.y)<112;
+  float gx=chase?player.x:104,gy=chase?player.y:184;
+  if(chase && abs(t.x-player.x)<17 && abs(t.y-player.y)<17 && clearRay(t.x,t.y,player.x,player.y,false)) {
+    t.intent="BITE";if(t.cool<=0){hitPlayer();t.cool=1.25f;}return;
+  }
+  if(dist(t.x,t.y,104,200)<24 && clearRay(t.x,t.y,104,200,false)) {
+    t.intent="BITE";if(t.cool<=0){damageBase();t.cool=1.65f;}return;
+  }
+  if(abs(t.x-t.tx)+abs(t.y-t.ty)<.02f) {
+    t.goalX=constrain((int)(gx/16),0,12);t.goalY=constrain((int)(gy/16),0,12);
+    if(t.goalX==6 && t.goalY==12)t.goalY=11;
+    t.phase=2;t.lane=t.goalX;t.memory=0;
+    int d=routeDirection(t);if(d>=0)setWaypoint(t,d);
+  }
+  float remain=abs(t.tx-t.x)+abs(t.ty-t.y);if(remain<.01f)return;
+  t.dir=abs(t.tx-t.x)>.01f?(t.tx>t.x?1:3):(t.ty>t.y?2:0);
+  float step=min(enemyMoveSpeed(t)*dt,remain);
+  float nx=t.x+DX[t.dir]*step,ny=t.y+DY[t.dir]*step;
+  if(canStand(t,nx,ny)){t.x=nx;t.y=ny;t.stuck=0;t.intent="HUNT";}
+  else {
+    t.stuck+=dt;t.intent="CLAW";
+    if(brickAhead(t) && t.cool<=0) {
+      int cx=constrain((int)((t.x+DX[t.dir]*9)/8),0,25),cy=constrain((int)((t.y+DY[t.dir]*9)/8),0,25);
+      for(int i=-1;i<=1;i++) {
+        int x=constrain(cx+(t.dir%2==0?i:0),0,25),y=constrain(cy+(t.dir%2==1?i:0),0,25);
+        if(map[y][x]==1)map[y][x]=0;
+      }
+      t.cool=t.type==2?.85f:1.6f;burst(cx*8+4,cy*8+4,4,YELLOW);
+    }
+    if(t.stuck>1.2f && !brickAhead(t)){t.tx=t.fx;t.ty=t.fy;t.stuck=0;}
+  }
+}
+void tick(float dt) {
+  if(gameMode==VERSUS){tickDuel(dt);return;}
+  gameTime+=dt;bannerTimer=max(0,bannerTimer-dt);baseFlash=max(0,baseFlash-dt);
+  baseGuard=max(0,baseGuard-dt);freezeTimer=max(0,freezeTimer-dt);
+  reliefTimer=max(0,reliefTimer-dt);intermission=max(0,intermission-dt);
+  skillCD=max(0,skillCD-dt);skillActive=max(0,skillActive-dt);empRing=max(0,empRing-dt);
+  if(fortTimer>0){
+    fortTimer-=dt;
+    if(fortTimer<=0){fortTimer=0;baseWall(1);for(Tank t:enemies)if(t.alive)clearUnderTank(t);if(player!=null && player.alive)clearUnderTank(player);}
+  }
+  if(player!=null && player.alive) {
+    player.cool=max(0,player.cool-dt);player.shield=max(0,player.shield-dt);
+    int d=directionHeld(lastDir)?lastDir:-1;
+    if(d<0)for(int i=0;i<4;i++)if(directionHeld(i)){d=i;break;}
+    if(d>=0)movePlayer(d,dt);
+    if(down(' ') || down('J'))fire(player);
+  } else {
+    respawnTimer-=dt;
+    if(respawnTimer<=0){float[] sx={72,136,40,168};for(float x:sx)if(canStand(null,x,200)){player=createPlayer(x,200,player==null?0:max(0,player.level-1));break;}}
+  }
+  updateRelays(dt);spawnTimer-=dt;
+  if(player!=null && player.alive && reliefTimer<=0 && intermission<=0 && spawned<totalEnemies && enemies.size()<enemyCap() && spawnTimer<=0)spawnEnemy();
+  for(Tank t:enemies)if(t.alive && state==PLAY){
+    t.shield=max(0,t.shield-dt);t.stun=max(0,t.stun-dt);
+    if(freezeTimer<=0 && reliefTimer<=0 && t.stun<=0){if(gameMode==ZOMBIES)updateZombie(t,dt);else updateEnemy(t,dt);}
+  }
+  for(int i=0;i<bullets.size() && state==PLAY;i++)updateBullet(bullets.get(i),dt);
+  for(int i=bullets.size()-1;i>=0;i--)if(!bullets.get(i).alive)bullets.remove(i);
+  for(int i=enemies.size()-1;i>=0;i--)if(!enemies.get(i).alive)enemies.remove(i);
+  if(state!=PLAY)return;
+  for(int i=powers.size()-1;i>=0;i--){
+    Power p=powers.get(i);p.ttl-=dt;
+    if(player!=null && player.alive && abs(player.x-p.x)<11 && abs(player.y-p.y)<11){collect(p.kind);powers.remove(i);}
+    else if(p.ttl<=0)powers.remove(i);
+  }
+  updateSparks(dt);
+  if(killed>=totalEnemies && enemies.isEmpty() && baseAlive && player!=null && player.alive) {
+    if(gameMode==STORY && waveNumber>=3) {
+      if(stage==2 && relaysDone<2){if(!waitingObjective){announce("HOLD E AT BOTH RELAYS");waitingObjective=true;}return;}
+      if(stage==3 && !commanderDown)return;
+      addScore(1000*stage);state=stage==3?WIN:CLEAR;clearKeys();
+      message=stage==3?"KOWLOON IS FREE":"MISSION COMPLETE";
+    } else {waveNumber++;prepareWave(true);}
+  }
+}
+void updateSparks(float dt) {
+  for(int i=effects.size()-1;i>=0;i--){Spark s=effects.get(i);s.life-=dt;s.x+=s.vx*dt;s.y+=s.vy*dt;if(s.life<=0)effects.remove(i);}
+}
+
+// Local duel: normalized armor/speed/fire rate, different bounded skills.
+void buildDuelMap(int seed) {
+  mapSeed=seed;for(int[] row:map)java.util.Arrays.fill(row,0);
+  java.util.Random rng=new java.util.Random(seed);
+  for(int r=1;r<=11;r++)for(int c=2;c<=6;c++) {
+    if(r==5 || r==7 || (r==6 && (c==2 || c==3)))continue;
+    if(rng.nextFloat()>.65f)continue;
+    int kind=rng.nextFloat()<.20f?2:1;
+    macro(c,r,kind);macro(12-c,r,kind);
+    if(!duelRoadsValid()){macro(c,r,0);macro(12-c,r,0);}
+  }
+  macro(6,6,1); // Central cover, with two protected approach routes.
+  if(!duelRoadsValid())macro(6,6,0);
+}
+boolean duelRoadsValid() {
+  int[] distances=roadDistances(1,6,0,12);
+  if(distances[6*13+11]<0)return false;
+  for(int r=0;r<13;r++)for(int c=0;c<13;c++)if(floorCell(c,r) && distances[r*13+c]<0)return false;
+  return true;
+}
+void startDuelRound() {
+  enemies.clear();bullets.clear();effects.clear();powers.clear();player=player2=null;
+  baseAlive=false;baseHP=0;baseGuard=0;gameTime=0;accumulator=0;
+  int seed=FIXED_SEED>=0?(FIXED_SEED+duelRound*1009)%1000000:(int)random(1000000);
+  buildDuelMap(seed);
+  player=createPilot(24,104,0,selectedTank);player.dir=1;
+  player2=createPilot(184,104,0,selectedTank2);player2.dir=3;
+  skillCD=skillCD2=skillActive=skillActive2=empRing=empRing2=0;
+  roundClock=90;roundWait=2;roundOver=false;state=PLAY;clearKeys();
+  announce("ROUND "+duelRound+" - FIRST TO 5");
+}
+boolean duelDirectionHeld(int index,int d) {
+  int[] p1={'W','D','S','A'},p2={UP,RIGHT,DOWN,LEFT};return down(index==0?p1[d]:p2[d]);
+}
+void updateDuelPilot(Tank p,int index,float dt) {
+  p.cool=max(0,p.cool-dt);p.shield=max(0,p.shield-dt);p.stun=max(0,p.stun-dt);
+  if(!p.alive || p.stun>0)return;
+  int last=index==0?lastDir:lastDir2,d=duelDirectionHeld(index,last)?last:-1;
+  if(d<0)for(int i=0;i<4;i++)if(duelDirectionHeld(index,i)){d=i;break;}
+  if(d>=0)movePilot(p,d,dt);
+  if(index==0?down(' '):down(ENTER)||down(RETURN)||down('/'))fire(p);
+}
+void finishRound(int winner) {
+  if(roundOver)return;
+  roundOver=true;roundWait=3;bullets.clear();clearKeys();
+  if(winner==1)wins1++;if(winner==2)wins2++;
+  announce(winner==0?"ROUND DRAW":"PLAYER "+winner+" WINS ROUND");
+  if(wins1>=5 || wins2>=5){state=WIN;message="PLAYER "+(wins1>=5?1:2)+" WINS MATCH";}
+}
+void tickDuel(float dt) {
+  gameTime+=dt;bannerTimer=max(0,bannerTimer-dt);updateSparks(dt);
+  if(roundWait>0){roundWait=max(0,roundWait-dt);if(roundWait==0 && roundOver){duelRound++;startDuelRound();}return;}
+  roundClock=max(0,roundClock-dt);
+  skillCD=max(0,skillCD-dt);skillCD2=max(0,skillCD2-dt);
+  skillActive=max(0,skillActive-dt);skillActive2=max(0,skillActive2-dt);
+  empRing=max(0,empRing-dt);empRing2=max(0,empRing2-dt);
+  updateDuelPilot(player,0,dt);updateDuelPilot(player2,1,dt);
+  for(int i=0;i<bullets.size();i++)updateBullet(bullets.get(i),dt);
+  for(int i=bullets.size()-1;i>=0;i--)if(!bullets.get(i).alive)bullets.remove(i);
+  if(!player.alive || !player2.alive)finishRound(!player.alive && !player2.alive?0:player.alive?1:2);
+  else if(roundClock<=0)finishRound(player.hp==player2.hp?0:player.hp>player2.hp?1:2);
+}
+
+// Optional PNG overrides. The same built-in art works when data/ is absent.
+PImage[] tankArt=new PImage[3],enemyArt=new PImage[3],portraitArt=new PImage[3],tileArt=new PImage[5];
+PImage[] zombieArt=new PImage[3];
+PImage waterSecond,eagleArt;
+PImage optionalArt(String file) {
+  if(!new java.io.File(dataPath(file)).isFile())return null;
+  PImage pic=loadImage(file);return pic!=null && pic.width>0?pic:null;
+}
+void loadArt() {
+  String[] names={"vanguard","ranger","bastion"};
+  for(int i=0;i<3;i++){
+    tankArt[i]=optionalArt("tank_"+names[i]+".png");
+    enemyArt[i]=optionalArt("tank_enemy_"+i+".png");
+    portraitArt[i]=optionalArt("portrait_"+names[i]+".png");
+    zombieArt[i]=optionalArt("zombie_"+i+".png");
+  }
+  tileArt[1]=optionalArt("tile_brick.png");tileArt[2]=optionalArt("tile_steel.png");
+  tileArt[3]=optionalArt("tile_water_0.png");tileArt[4]=optionalArt("tile_foliage.png");
+  waterSecond=optionalArt("tile_water_1.png");eagleArt=optionalArt("base_eagle.png");
+}
+void imageSprite(PImage img,float x,float y,float w,float h,int dir) {
+  g.pushStyle();g.pushMatrix();g.translate(round(x),round(y));g.rotate(dir*HALF_PI);
+  g.imageMode(CENTER);g.image(img,0,0,w,h);g.popMatrix();g.popStyle();
+}
+void playerSprite(float x,float y,int dir,int chassis) {
+  if(tankArt[chassis]!=null)imageSprite(tankArt[chassis],x,y,16,16,dir);
+  else playerSpriteBuiltin(x,y,dir,chassis);
+}
+void tankSprite(float x,float y,int dir,boolean enemy,int type,int hp) {
+  if(enemy && enemyArt[type]!=null)imageSprite(enemyArt[type],x,y,16,16,dir);
+  else tankSpriteBuiltin(x,y,dir,enemy,type,hp);
+}
+void frontTank(float x,float y,int chassis) {
+  if(portraitArt[chassis]!=null)imageSprite(portraitArt[chassis],x,y-2,72,48,0);
+  else frontTankBuiltin(x,y,chassis);
+}
+void tileSprite(int x,int y,int kind) {
+  if(kind<=0 || kind>4)return;
+  PImage img=kind==3 && ((int)(gameTime*2)+x)%2==1 && waterSecond!=null?waterSecond:tileArt[kind];
+  if(img!=null){g.pushStyle();g.imageMode(CORNER);g.image(img,x*8,y*8,8,8);g.popStyle();}
+  else tileSpriteBuiltin(x,y,kind);
+}
+void drawEagle(float x,float y,int ink) {
+  if(eagleArt!=null && ink==YELLOW)imageSprite(eagleArt,x,y,16,16,0);
+  else drawEagleBuiltin(x,y,ink);
+}
+void draw() {
+  int now=millis();float dt=min((now-lastMillis)/1000.0f,.08f);lastMillis=now;
+  if(!focused && state==PLAY){state=PAUSE;clearKeys();}
+  if(state==PLAY){accumulator+=dt;while(accumulator>=1.0f/60 && state==PLAY){tick(1.0f/60);accumulator-=1.0f/60;}}
+  else accumulator=0;
+  g.beginDraw();g.noStroke();g.background(BG);
+  if(state==MENU)renderMenu();
+  else if(state==HELP)renderHelp();
+  else if(state==BRIEF)renderBrief();
+  else {
+    renderGame();
+    if(state==PAUSE)renderOverlay("PAUSED","P / ENTER RESUME");
+    if(state==LOST)renderOverlay("MISSION FAILED",message);
+    if(state==CLEAR)renderOverlay("CHAPTER COMPLETE","ENTER NEXT CHAPTER");
+    if(state==WIN)renderOverlay(gameMode==VERSUS?message:"KOWLOON LIBERATED","ENTER RESTART / M MENU");
+  }
+  g.endDraw();image(g,0,0,width,height);
+}
+void keyPressed() {
+  int k=keyCode;if(key==ESC){key=0;k=27;}
+  if(k<0 || k>=held.length || held[k])return;
+  held[k]=true;
+  if(k=='M'){state=MENU;clearKeys();return;}
+  if(state==MENU){
+    if(k>='1' && k<='3'){selectedTank=k-'1';menuPlayer=0;return;}
+    if(k>='4' && k<='6' && gameMode==VERSUS){selectedTank2=k-'4';menuPlayer=1;return;}
+    if(k==TAB && gameMode==VERSUS){menuPlayer=1-menuPlayer;return;}
+    if(k=='C'){if(gameMode!=VERSUS)difficulty=(difficulty+1)%3;return;}
+    if(k>=112 && k<=115){gameMode=k-112;menuPlayer=0;return;}
+    if(k==LEFT || k=='A' || k==RIGHT || k=='D'){
+      int step=k==LEFT || k=='A'?2:1;
+      if(gameMode==VERSUS && menuPlayer==1)selectedTank2=(selectedTank2+step)%3;
+      else selectedTank=(selectedTank+step)%3;return;
+    }
+    if(k=='H'){state=HELP;return;}
+  }
+  if(k=='R' && state!=MENU && state!=HELP){newGame();return;}
+  if(k==27 || k=='P'){
+    if(state==PLAY){state=PAUSE;clearKeys();}
+    else if(state==PAUSE){state=PLAY;clearKeys();}
+    else if(state==HELP){state=MENU;clearKeys();}
+    return;
+  }
+  if(state==PLAY){
+    if(gameMode==VERSUS){
+      int[] a={'W','D','S','A'},b={UP,RIGHT,DOWN,LEFT};
+      for(int i=0;i<4;i++){if(k==a[i])lastDir=i;if(k==b[i])lastDir2=i;}
+      if(roundWait<=0){if(k=='Q')activateFor(player);if(k==SHIFT || k=='.')activateFor(player2);}
+      return;
+    }
+    int d=directionKey(k);if(d>=0)lastDir=d;
+    if(k=='Q'){activateSkill();return;}
+    if(k=='E'){useRepair();return;}
+  }
+  if(k==ENTER || k==RETURN){
+    if(state==MENU || state==LOST || state==WIN)newGame();
+    else if(state==BRIEF){state=PLAY;clearKeys();}
+    else if(state==CLEAR){stage++;lives=min(9,lives+1);startStage();}
+    else if(state==PAUSE){state=PLAY;clearKeys();}
+    else if(state==HELP){state=MENU;clearKeys();}
+  }
+}
+void mousePressed() {
+  if(state==MENU){
+    for(int i=0;i<4;i++)if(mouseIn(10+i*84,54,80,17)){gameMode=i;menuPlayer=0;return;}
+    if(gameMode!=VERSUS)for(int i=0;i<3;i++)if(mouseIn(10+i*112,89,108,15)){difficulty=i;return;}
+    for(int i=0;i<3;i++)if(mouseIn(10+i*112,112,108,88)){
+      if(gameMode==VERSUS && menuPlayer==1)selectedTank2=i;else selectedTank=i;return;
+    }
+    if(gameMode==VERSUS && mouseIn(10,204,332,12)){menuPlayer=1-menuPlayer;return;}
+    if(mouseIn(10,222,234,20))newGame();
+    else if(mouseIn(254,222,88,20))state=HELP;
+  }else if(state==PLAY){
+    if(mouseIn(264,205,72,15)){if(gameMode!=VERSUS)activateSkill();}
+    else if(mouseIn(264,224,72,12)){if(gameMode!=VERSUS)useRepair();}
+    else if(mouseIn(264,242,72,12)){state=PAUSE;clearKeys();}
+  }else if(state==PAUSE && mouseIn(264,242,72,12)){state=PLAY;clearKeys();}
+  else if(state==BRIEF && mouseIn(82,225,188,20)){state=PLAY;clearKeys();}
+}
+void optionButton(String label,int x,int y,int w,int h,boolean selected,int ink) {
+  panelFace(x,y,w,h);box(x,y,w,h,selected?ink:GRAY);
+  if(selected){g.fill(ink);g.rect(x+2,y+2,2,h-4);}
+  pixelText(label,x+(w-label.length()*4+1)/2,y+(h-5)/2,1,selected?PALE:GRAY);
+}
+void renderMenu() {
+  g.noStroke();g.background(BG);portraitCity(0,0,352,49,7);
+  displayText("WARZONE",27,10,4,YELLOW);displayText(":2077",207,20,3,PALE);
+  pixelText("KOWLOON / ARMORED OPERATIONS",29,42,1,PALE);
+  corners(7,7,338,250,YELLOW);
+  for(int i=0;i<4;i++)optionButton(MODE_NAMES[i],10+i*84,54,80,17,gameMode==i,YELLOW);
+  String[] desc={"DEFEND THE EAGLE / ENDLESS ESCALATING WAVES","LOCAL 1V1 / SAME KEYBOARD / FIRST TO 5","MELEE HORDES / BREAKABLE COVER / SURVIVE","3 CHAPTERS / EVACUATE / RELAYS / COMMANDER"};
+  centered(desc[gameMode],77,1,PALE);
+  if(gameMode==VERSUS)centered("FAIR DUEL: 2 HP / SAME SPEED AND FIRE RATE",94,1,P2_COLOR);
+  else for(int i=0;i<3;i++)optionButton(DIFFICULTIES[i],10+i*112,89,108,15,difficulty==i,YELLOW);
+  for(int i=0;i<3;i++){
+    int x=10+i*112;boolean chosen=(gameMode==VERSUS && menuPlayer==1?selectedTank2:selectedTank)==i;
+    panelFace(x,112,108,88);portraitCity(x+3,129,102,43,i+3);
+    frontTank(x+54,152,i);
+    cardText((i+1)+" "+TANK_NAMES[i],x,119,PALE);
+    cardText(gameMode==VERSUS?"ARMOR 2 / SPEED 44":"ARMOR "+TANK_HP[i]+" / SPD "+(int)TANK_SPEED[i],x,177,PALE);
+    cardText(SKILL_NAMES[i]+" / "+(gameMode==VERSUS?12:(int)SKILL_COOLDOWN[i])+"S",x,188,YELLOW);
+    if(chosen)corners(x,112,108,88,gameMode==VERSUS && menuPlayer==1?P2_COLOR:YELLOW);
+    if(gameMode==VERSUS){
+      if(selectedTank==i)pixelText("P1",x+5,163,1,YELLOW);
+      if(selectedTank2==i)pixelText("P2",x+91,163,1,P2_COLOR);
+    }
+  }
+  if(gameMode==VERSUS)centered("EDIT P"+(menuPlayer+1)+" / TAB SWITCH / P1:1-3 P2:4-6",207,1,menuPlayer==0?YELLOW:P2_COLOR);
+  else centered(initialLives()+" LIVES / BASE 3 HP / WAVE RESUPPLY",207,1,YELLOW);
+  uiButton("ENTER - DEPLOY",10,222,234,20);uiButton("H - HELP",254,222,88,20);
+  centered("F1-F4 MODE / C DIFFICULTY / CLICK TO SELECT",250,1,GRAY);
+}
+void zombieSprite(float x,float y,int dir,int type,boolean attacking) {
+  if(zombieArt[type]!=null) {
+    imageSprite(zombieArt[type],x,y,16,16,dir);
+    if(attacking)box(round(x)-8,round(y)-8,16,16,ALERT);
+  } else zombieSpriteBuiltin(x,y,dir,type,attacking);
+}
+void zombieSpriteBuiltin(float x,float y,int dir,int type,boolean attacking) {
+  g.pushMatrix();g.translate(round(x),round(y));g.rotate(dir*HALF_PI);g.noStroke();
+  int w=type==2?5:3;
+  g.fill(DARK);g.rect(-w-2,-6,w*2+4,13);
+  g.fill(type==2?0xffA7AC63:0xff8F9E69);g.rect(-3,-6,6,5);
+  g.fill(0xffE4D5A1);g.rect(-3,-6,6,1);
+  g.fill(attacking?0xffF0AA59:0xffF3D467);g.rect(-2,-4,1,1);g.rect(1,-4,1,1);
+  g.fill(type==1?0xff8F7770:0xff707C69);g.rect(-w,-1,w*2,5);
+  g.fill(0xffB5B893);g.rect(-w,-1,w*2,1);
+  int arms=attacking?-5:-1;
+  g.fill(ZOMBIE_COLOR);g.rect(-w-2,arms,2,5);g.rect(w,arms,2,5);
+  int step=(int)(gameTime*5)%2;
+  g.fill(0xffAAB19B);g.rect(-w+1,4,2,2+step);g.rect(w-3,4,2,3-step);
+  if(type==2){g.fill(YELLOW);g.rect(-4,1,8,1);}
+  g.popMatrix();
+}
+void drawTank(Tank t) {
+  int accent=t==player2?P2_COLOR:t.enemy && gameMode==ZOMBIES?ZOMBIE_COLOR:YELLOW;
+  if(t.shield>0 && (int)(gameTime*12)%2==0)box(round(t.x)-8,round(t.y)-8,16,16,PALE);
+  if(t.enemy && gameMode==ZOMBIES)zombieSprite(t.x,t.y,t.dir,t.type,t.intent.equals("BITE") || t.intent.equals("CLAW"));
+  else if(t.enemy)tankSprite(t.x,t.y,t.dir,true,t.type,t.hp);
+  else playerSprite(t.x,t.y,t.dir,t.chassis);
+  if(gameMode==VERSUS){
+    g.fill(accent);g.rect(round(t.x)-7,round(t.y)+9,14,2);
+    pixelText(t==player2?"2":"1",t.x-1,t.y-13,1,accent);
+  }
+  if(t.stun>0)pixelText("Z",t.x-1,t.y-11,1,accent);
+  else if(t.enemy && t.intent.equals("AIM")){g.fill(ALERT);g.rect(round(t.x)+DX[t.dir]*10-1,round(t.y)+DY[t.dir]*10-1,2,2);}
+  if(t.boss){box(t.x-9,t.y-10,18,20,YELLOW);g.fill(DARK);g.rect(t.x-10,t.y-13,20,2);g.fill(YELLOW);g.rect(t.x-10,t.y-13,20*t.hp/(float)t.maxHP,2);}
+  else if(t.maxHP>1)for(int i=0;i<t.maxHP;i++){g.fill(i<t.hp?accent:GRAY);g.rect(round(t.x)-5+i*4,round(t.y)+8,3,1);}
+  if(!t.enemy && activeFor(t)>0 && t.chassis==2)box(t.x-10,t.y-10,20,20,accent);
+  float ring=t==player2?empRing2:empRing;
+  if(!t.enemy && ring>0){int r=8+(int)((.55f-ring)*100);g.pushStyle();g.clip(0,0,WORLD,WORLD);box(t.x-r,t.y-r,r*2,r*2,accent);g.noClip();g.popStyle();}
+}
+void renderGame() {
+  g.background(BG);g.noStroke();displayText("WARZONE:2077",9,7,2,YELLOW);
+  g.fill(GRAY);g.rect(9,24,239,2);g.fill(YELLOW);
+  g.rect(9,24,239*(gameMode==VERSUS?max(wins1,wins2)/5.0f:killed/(float)max(1,totalEnemies)),2);
+  pixelText(MODE_NAMES[gameMode],189,16,1,PALE);cityEdges();
+  g.pushMatrix();g.translate(OX,OY);streetFloor();
+  for(int y=0;y<N;y++)for(int x=0;x<N;x++)if(map[y][x]!=4)tileSprite(x,y,map[y][x]);
+  if(hasBase()){
+    drawEagle(104,200,baseFlash>0 && (int)(gameTime*12)%2==0?PALE:baseAlive?YELLOW:GRAY);
+    for(int i=0;i<3;i++){g.fill(i<baseHP?YELLOW:GRAY);g.rect(98+i*5,206,4,1);}
+  }
+  if(gameMode==STORY && stage==2)for(int i=0;i<2;i++){
+    int ink=relayOn[i]?P2_COLOR:YELLOW;
+    box(relayX[i]-6,relayY[i]-6,12,12,ink);pixelText("R",relayX[i]-1,relayY[i]-2,1,ink);
+    if(nearRelay()==i){g.fill(ink);g.rect(relayX[i]-7,relayY[i]+8,14*min(1,relayHold/2),2);}
+  }
+  for(Power p:powers){
+    if(p.ttl<4 && (int)(gameTime*8)%2==0)continue;
+    g.fill(DARK);g.rect(p.x-6,p.y-6,12,12);box(p.x-6,p.y-6,12,12,YELLOW);
+    String[] labels={"S","H","B","T","F","+"};pixelText(labels[p.kind%6],p.x-3,p.y-4,2,PALE);
+  }
+  for(Tank t:enemies)if(t.alive)drawTank(t);
+  if(player!=null && player.alive)drawTank(player);
+  if(player2!=null && player2.alive)drawTank(player2);
+  for(Bullet b:bullets)if(b.alive){g.fill(b.owner==player2?P2_COLOR:b.enemy?PALE:YELLOW);g.rect(round(b.x)-1,round(b.y)-1,2,2);}
+  for(int y=0;y<N;y++)for(int x=0;x<N;x++)if(map[y][x]==4)tileSprite(x,y,4);
+  for(Spark s:effects){g.fill(s.c);g.rect(round(s.x),round(s.y),s.life>s.maxLife*.5f?2:1,2);}
+  g.popMatrix();box(OX-1,OY-1,WORLD+2,WORLD+2,GRAY);corners(7,29,242,214,YELLOW);
+  hazard(248,44,47,YELLOW);hazard(248,185,46,YELLOW);renderSidebar();
+  if(gameMode==VERSUS){pixelText("P1 WASD SPACE Q / P2 ARROWS",10,249,1,PALE);pixelText("P2 ENTER FIRE SHIFT SKILL / P PAUSE",10,257,1,P2_COLOR);}
+  else{pixelText("WASD MOVE  SPACE FIRE  Q SKILL",10,249,1,PALE);pixelText(gameMode==STORY && stage==2?"HOLD E RELAY / E BASE REPAIR / P PAUSE":"E BASE REPAIR / P PAUSE / M MENU",10,257,1,YELLOW);}
+  if(bannerTimer>0 && message!=null){
+    int w=min(232,message.length()*4+12);g.fill(DARK);g.rect(128-w/2,34,w,13);box(128-w/2,34,w,13,YELLOW);
+    pixelText(message,128-(message.length()*4-1)/2,38,1,PALE);
+  }
+}
+void renderSidebar() {
+  panelFace(256,8,88,248);corners(256,8,88,248,YELLOW);hazard(340,43,59,YELLOW);hazard(340,172,63,YELLOW);
+  if(gameMode==VERSUS){renderDuelSidebar();return;}
+  pixelText(gameMode==STORY?"CHAPTER "+stage:MODE_NAMES[gameMode],264,15,1,PALE);
+  pixelText(DIFFICULTIES[difficulty],264,27,1,YELLOW);g.fill(GRAY);g.rect(264,38,72,1);
+  pixelText("WAVE",264,46,1,PALE);displayText(nf(waveNumber,2),302,42,2,YELLOW);
+  pixelText("LEFT "+max(0,totalEnemies-killed),264,62,1,PALE);
+  for(int i=0;i<min(24,max(0,totalEnemies-killed));i++){
+    int x=265+(i%8)*9,y=73+(i/8)*8;
+    g.fill(i<enemies.size()?YELLOW:GRAY);g.rect(x,y,2,5);g.rect(x+5,y,2,5);g.rect(x+2,y+1,3,3);
+  }
+  pixelText(intermission>0?"NEXT "+ceil(intermission)+"S":"ACTIVE "+enemies.size()+"/"+enemyCap(),264,101,1,YELLOW);
+  g.fill(GRAY);g.rect(264,111,72,1);
+  pixelText(TANK_NAMES[selectedTank],264,119,1,PALE);pixelText("LIVES "+nf(lives,2),264,130,1,YELLOW);
+  int hp=player!=null && player.alive?player.hp:0;
+  pixelText("HULL "+hp+"/"+TANK_HP[selectedTank],264,141,1,PALE);
+  pixelText("SCORE",264,153,1,GRAY);displayText(nf(min(score,999999),6),264,161,2,YELLOW);
+  pixelText("BASE "+baseHP+"/3  KIT "+repairKits,264,181,1,baseHP==1?ALERT:PALE);
+  int evacuated=min(12,(waveNumber-1)*4+(killed>=totalEnemies?4:0));
+  String objective=gameMode==STORY && stage==1?"EVAC "+evacuated+"/12":gameMode==STORY && stage==2?"RELAYS "+relaysDone+"/2":gameMode==STORY && stage==3?"HUNT COMMANDER":"POWER LV "+(player==null?0:player.level);
+  pixelText(objective,264,193,1,YELLOW);
+  String ready=skillActive>0?"ACTIVE":skillCD>0?ceil(skillCD)+"S":"READY";
+  uiButton("Q "+SKILL_NAMES[selectedTank]+" "+ready,264,205,72,15);
+  uiButton("E REPAIR "+repairKits,264,224,72,12);uiButton(state==PAUSE?"RESUME":"PAUSE",264,242,72,12);
+}
+void renderDuelSidebar() {
+  pixelText("LOCAL DUEL",264,16,1,PALE);pixelText("FIRST TO 5",264,29,1,YELLOW);
+  pixelText("ROUND "+duelRound,264,45,1,PALE);displayText(nf(ceil(roundClock),2),288,58,3,YELLOW);
+  pixelText(roundWait>0?(roundOver?"NEXT ROUND ":"START IN ")+ceil(roundWait):"SECONDS LEFT",264,85,1,GRAY);
+  g.fill(GRAY);g.rect(264,98,72,1);
+  Tank[] pilots={player,player2};int[] wins={wins1,wins2};
+  for(int i=0;i<2;i++){
+    int y=109+i*58,ink=i==0?YELLOW:P2_COLOR;Tank p=pilots[i];
+    pixelText("P"+(i+1)+" "+TANK_NAMES[p.chassis],264,y,1,ink);
+    pixelText("POINTS "+wins[i]+"/5",264,y+11,1,PALE);
+    pixelText("HULL "+max(0,p.hp)+"/2",264,y+22,1,ink);
+    pixelText(SKILL_NAMES[p.chassis]+" "+(cooldownFor(p)>0?ceil(cooldownFor(p))+"S":"READY"),264,y+33,1,PALE);
+  }
+  pixelText("Q / SHIFT SKILLS",264,224,1,GRAY);uiButton(state==PAUSE?"RESUME":"PAUSE",264,242,72,12);
+}
+void renderOverlay(String title,String sub) {
+  g.noStroke();g.fill(0,175);g.rect(0,28,352,218);panelFace(36,88,280,88);corners(36,88,280,88,YELLOW);
+  centered(title,102,title.length()>18?2:3,YELLOW);centered(sub,133,1,PALE);
+  centered("ENTER CONTINUE / R RESTART / M MENU",156,1,GRAY);
+}
+void renderBrief() {
+  g.noStroke();g.background(BG);portraitCity(0,0,352,264,stage+21);panelFace(15,15,322,234);corners(15,15,322,234,YELLOW);
+  centered("KOWLOON 2077",28,3,YELLOW);centered("CHAPTER "+stage+" / "+DIFFICULTIES[difficulty],53,1,PALE);
+  String[][] lines={
+    {"01 / LAST FERRY","THE DISTRICT HAS LOST POWER.","CIVILIANS ARE WAITING AT THE HARBOR.","KEEP THE EAGLE TRANSMITTER ONLINE.","","OBJECTIVE: CLEAR 3 WAVES.","EACH WAVE EVACUATES 4 CIVILIANS.","BASE MUST SURVIVE. E REPAIRS IT."},
+    {"02 / SIGNAL IN THE RAIN","THE FERRY HAS LEFT THE HARBOR.","TWO ROOFTOP RELAYS CAN CALL SUPPORT.","REACH BOTH YELLOW R MARKERS.","","OBJECTIVE: HOLD E FOR 2S AT EACH R.","RESTORE BOTH RELAYS AND CLEAR 3 WAVES.","E NEAR THE BASE STILL REPAIRS IT."},
+    {"03 / DAWN OVER KOWLOON","THE SIGNAL REACHED OUR ALLIES.","AN ARMORED COMMANDER BLOCKS THE CITY.","BREAK ITS ESCORT AND END THE SIEGE.","","OBJECTIVE: CLEAR 3 WAVES.","THE COMMANDER ARRIVES IN WAVE 3.","DEFEAT IT WHILE PROTECTING THE BASE."}
+  };
+  for(int i=0;i<8;i++)pixelText(lines[stage-1][i],29,77+i*15,1,i==0 || i>=5?YELLOW:PALE);
+  uiButton("ENTER - BEGIN MISSION",82,225,188,20);
+}
+void renderHelp() {
+  g.background(BG);corners(7,7,338,250,YELLOW);centered("FIELD MANUAL",17,3,YELLOW);
+  String[] lines={
+    "SOLO: WASD / ARROWS MOVE. SPACE / J FIRE.",
+    "Q SKILL. E REPAIR NEAR BASE. P PAUSE.",
+    "M MENU. R RESTART. ENTER CONTINUE.",
+    "SURVIVAL: ENDLESS WAVES. BASE HAS 3 HP.",
+    "CASUAL 6 LIVES / STANDARD 4 / VETERAN 3.",
+    "LATER WAVES: MORE, FASTER ENEMIES.",
+    "SPEED AND ACTIVE ENEMY COUNTS ARE CAPPED.",
+    "WAVE CLEAR: +1 HULL / +1 REPAIR KIT.",
+    "ZOMBIES: WALKERS, RUNNERS, ARMORED BRUTES.",
+    "THEY BITE AND BREAK BRICKS. NO GUNS.",
+    "STORY: 3 CHAPTERS. READ EACH BRIEFING.",
+    "DUEL P1: WASD / SPACE FIRE / Q SKILL.",
+    "DUEL P2: ARROWS / ENTER FIRE / SHIFT SKILL.",
+    "P2 ALTERNATIVES: / FIRE AND . SKILL.",
+    "DUEL: 2 HP EACH. FIRST TO 5 POINTS.",
+    "90S ROUND: MORE HULL WINS. TIE IS DRAW.",
+    "ALL MODES KEEP THE THREE CHASSIS SKILLS."
+  };
+  for(int i=0;i<lines.length;i++)pixelText(lines[i],16,47+i*10,1,i<3?PALE:GRAY);
+  centered("ENTER / M - BACK TO MENU",240,1,YELLOW);
+}
