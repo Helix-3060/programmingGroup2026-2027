@@ -6,7 +6,7 @@ This program is for teenagers, it addresses boredom which happens a lot.
 
 ## Team
 - Rebecca Jackson - Designs and textures
-- Yuxing Li - [current contribution or responsibility]
+- Yuxing Li - coding, user-interface mockup
 - Bradley Nieto Medina - plans, ideas, organization
 - Stephen Wallace - coding, integrating the textures.
 
@@ -16,7 +16,7 @@ This program is for teenagers, it addresses boredom which happens a lot.
 - [x] We have limited the first version to simple player, obstacles, and shooting.
 
 ## Design pack
-- [ ] User-interface mockup: [view the mockup of the main game](docs/mockup1.png) [view the mockup of the main menu](docs/mockup2.png)
+- [x] User-interface mockup: [view the mockup of the main game](docs/mockup1.png) [view the mockup of the main menu](docs/mockup2.png)
 - [ ] Class diagram: [view the class diagram](design/class-diagram.png)
 - [x] Logic diagram: [view the logic diagram](docs/diagramLogicUpdated-inverted.drawio.png)
 - [ ] Project schedule: [view the schedule](design/project-schedule.png)
