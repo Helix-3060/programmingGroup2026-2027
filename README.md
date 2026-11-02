@@ -16,7 +16,7 @@ This program is for teenagers, it addresses boredom which happens a lot.
 - [x] We have limited the first version to simple player, obstacles, and shooting.
 
 ## Design pack
-- [ ] User-interface mockup: [view the mockup](design/ui-mockup.png)
+- [ ] User-interface mockup: [view the mockup](docs/mockup1.png)
 - [ ] Class diagram: [view the class diagram](design/class-diagram.png)
 - [x] Logic diagram: [view the logic diagram](docs/diagramLogicUpdated-inverted.drawio.png)
 - [ ] Project schedule: [view the schedule](design/project-schedule.png)
