@@ -18,7 +18,7 @@ This program is for teenagers, it addresses boredom which happens a lot.
 ## Design pack
 - [ ] User-interface mockup: [view the mockup](design/ui-mockup.png)
 - [ ] Class diagram: [view the class diagram](design/class-diagram.png)
-- [x] Logic diagram: [view the logic diagram](design/logic-diagram.png)
+- [x] Logic diagram: [view the logic diagram](docs/diagramLogicUpdated-inverted.drawio.png)
 - [ ] Project schedule: [view the schedule](design/project-schedule.png)
 
 ## Current status
