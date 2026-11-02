@@ -5,10 +5,10 @@
 This program is for teenagers, it addresses boredom which happens a lot.
 
 ## Team
-- Rebecca Jackson - Designs and textures
-- Yuxing Li - coding, user-interface mockup
-- Bradley Nieto Medina - plans, ideas, organization
-- Stephen Wallace - coding, integrating the textures.
+- Rebecca Jackson - Designs and textures, user-interface mockup
+- Yuxing Li - coding, project schedule
+- Bradley Nieto Medina - plans, ideas, organization, logic diagram
+- Stephen Wallace - coding, integrating the textures. class diagram
 
 ## First buildable version
 - [x] A user can move around, break bricks, and shoot, collide with bricks, not move out of the screen.
