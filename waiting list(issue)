@@ -1,7 +1,7 @@
 (lucas)__about waiting list:write "solved" at the end of an issue if you think it's fixed and ill verify and delete it on waiting list
 
-The tanks should be able to collision instead of just ghosted
-Ai should be attacking both eagle and player.(now AI logic is unclear)
-There should be an ending,after destroyed eagle or player cleared wave nothing happens.
-Grass shouldn't able to be destroyed.
-The gap issue,make pass bigger.
+The tanks should be able to collision instead of just ghosted [add hitbox to enable collisions]
+Ai should be attacking both eagle and player.(now AI logic is unclear) [improve AI logic]
+There should be an ending,after destroyed eagle or player cleared wave nothing happens. [improve ending logic to make it have ending]
+Grass shouldn't able to be destroyed.[fix grass collision logic]
+The gap issue,make pass bigger.[fix when tank can't easily go through path]
