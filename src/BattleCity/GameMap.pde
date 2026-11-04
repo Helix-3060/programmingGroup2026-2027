@@ -1,3 +1,5 @@
+// Bradley Nieto
+
 class GameMap {
   int[][] grid = new int[GRID_ROWS][GRID_COLS];
   
