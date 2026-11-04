@@ -1,1 +1,2 @@
 run the BattleCity.pde file ONLY
+the other files will possably not run the full game proparly
