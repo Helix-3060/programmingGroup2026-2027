@@ -1,3 +1,4 @@
+//stephen p. wallace | nov 4th
 class Bullet {
   float x, y;
   float speed = 6.0;
