@@ -1,3 +1,4 @@
+// Stephen p. wallace | nov 4th
 class StartScreen {
   // skyline building
   Building[] skyline = new Building[8];
