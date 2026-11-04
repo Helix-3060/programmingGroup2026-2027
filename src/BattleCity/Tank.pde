@@ -1,4 +1,3 @@
-//lucas
 class Tank {
   float x, y;
   float speed = 2.0;
@@ -25,6 +24,8 @@ class Tank {
       x = constrain(nextX, 0, width - TILE_SIZE);
       y = constrain(nextY, 0, height - TILE_SIZE);
     }
+    if (keyUp) { x = round(x / TILE_SIZE) * TILE_SIZE; nextY -= speed; }
+    if (keyDown) { x = round(x / TILE_SIZE) * TILE_SIZE; nextY -= speed; }
     
     if (cooldown > 0) cooldown--;
     if (keySpace && cooldown == 0) {
@@ -59,6 +60,8 @@ class Tank {
   void draw() {
     pushMatrix();
     translate(x + TILE_SIZE / 2.0, y + TILE_SIZE / 2.0);
+    scale(1);
+    
     rotate(dir * HALF_PI);
     
     noStroke();
