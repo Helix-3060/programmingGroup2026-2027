@@ -27,6 +27,11 @@ int enemiesRemainingToSpawn = 0;
 int spawnTimer = 0;
 int score = 0;
 
+PImage brickImg;
+PImage metalImg;
+PImage grassImg;
+PImage waterImg;
+
 // Tile Types
 final int TILE_EMPTY = 0;
 final int TILE_BRICK = 1;
@@ -46,6 +51,10 @@ boolean keyUp, keyDown, keyLeft, keyRight, keySpace;
 void setup() {
   size(416, 416);
   frameRate(60);
+  brickImg = loadImage("Brick.png");
+  metalImg = loadImage("Metal.png");
+  grassImg = loadImage("Grass.png");
+  waterImg = loadImage("Water.png");
   
   map = new GameMap();
   bullets = new EntityManager();
