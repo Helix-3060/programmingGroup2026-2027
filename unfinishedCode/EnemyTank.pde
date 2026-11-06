@@ -43,13 +43,54 @@ class EnemyTank {
     }
   }
   
-  void chooseTacticalDirection() {
-    // Eagle is around x = 208 (center), y = 384 (bottom)
-    float targetX = 208;
-    float targetY = 384;
-    
-    float dx = targetX - x;
-    float dy = targetY - y;
+
+void chooseTacticalDirection() {
+  float targetX = 208;
+  float targetY = 384;
+
+  float bestScore = -999999;
+  int bestDir = dir;
+
+  for (int i = 0; i < 4; i++) {
+    float testX = x;
+    float testY = y;
+
+    // Check possible movement
+    switch (i) {
+      case 0: testY -= speed * 8; break;
+      case 1: testX += speed * 8; break;
+      case 2: testY += speed * 8; break;
+      case 3: testX -= speed * 8; break;
+    }
+
+    // Skip blocked directions
+    if (collidesWithMap(testX, testY)) {
+      continue;
+    }
+
+    // Distance to the base
+    float distance = dist(testX, testY, targetX, targetY);
+
+    // Prefer getting closer
+    float score = -distance;
+
+    // Slight preference for current direction
+    if (i == dir) {
+      score += 5;
+    }
+
+    // Small randomness
+    score += random(-8, 8);
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestDir = i;
+    }
+  }
+
+  dir = bestDir;
+}
+
     
     // Higher chance to move towards the Eagle base vertically or horizontally
     if (abs(dy) > abs(dx)) {
