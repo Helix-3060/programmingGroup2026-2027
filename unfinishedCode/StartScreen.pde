@@ -15,8 +15,6 @@ class StartScreen {
     "",
     "YOU ARE ONE OF THE LAST STANDING...",
     "AND THEY WILL STOP AT NOTHING...",
-    "",
-    "PREPARE FOR BATTLE."
   };
   
   StartScreen() {
