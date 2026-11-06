@@ -157,12 +157,12 @@ class GameMap {
       for (int c = 0; c < GRID_COLS; c++) {
         int x = c * TILE_SIZE;
         int y = r * TILE_SIZE;
-        
         switch (grid[r][c]) {
           case TILE_BRICK:
             fill(180, 50, 0);
             noStroke();
-            rect(x, y, TILE_SIZE, TILE_SIZE);
+            //rect(x, y, TILE_SIZE, TILE_SIZE);
+            image(brickImg, x, y, TILE_SIZE, TILE_SIZE);
             stroke(100, 20, 0);
             strokeWeight(1);
             noFill();
@@ -172,12 +172,12 @@ class GameMap {
           case TILE_STEEL:
             noStroke();
             fill(150, 150, 150);
-            rect(x, y, TILE_SIZE, TILE_SIZE);
+            image(metalImg, x, y, TILE_SIZE, TILE_SIZE);
             break;
           case TILE_WATER:
             noStroke();
             fill(0, 100, 200);
-            rect(x, y, TILE_SIZE, TILE_SIZE);
+            image(waterImg, x, y, TILE_SIZE, TILE_SIZE);
             break;
           case TILE_EAGLE:
             noStroke();
