@@ -21,11 +21,9 @@ class Tank {
     else if (keyLeft) { dir = 3; nextX -= speed; }
     
     if (!collidesWithMap(nextX, nextY)) {
-      x = constrain(nextX, 0, width - TILE_SIZE);
-      y = constrain(nextY, 0, height - TILE_SIZE);
+      x = constrain(nextX, 0, width - 26);
+      y = constrain(nextY, 0, height - 26);
     }
-    if (keyUp) { x = round(x / TILE_SIZE) * TILE_SIZE; nextY -= speed; }
-    if (keyDown) { x = round(x / TILE_SIZE) * TILE_SIZE; nextY -= speed; }
     
     if (cooldown > 0) cooldown--;
     if (keySpace && cooldown == 0) {
@@ -35,10 +33,13 @@ class Tank {
   }
   
   boolean collidesWithMap(float newX, float newY) {
+    int tankWidth = 26;
+    int tankHeight = 26;
+    
     int leftTile   = int(newX / TILE_SIZE);
-    int rightTile  = int((newX + TILE_SIZE - 1) / TILE_SIZE);
+    int rightTile  = int((newX + tankWidth - 1) / TILE_SIZE);
     int topTile    = int(newY / TILE_SIZE);
-    int bottomTile = int((newY + TILE_SIZE - 1) / TILE_SIZE);
+    int bottomTile = int((newY + tankHeight - 1) / TILE_SIZE);
     
     if (leftTile < 0 || rightTile >= GRID_COLS || topTile < 0 || bottomTile >= GRID_ROWS) return true;
     
@@ -52,28 +53,26 @@ class Tank {
   }
   
   void shoot() {
-    float bulletX = x + TILE_SIZE / 2.0 - 2;
-    float bulletY = y + TILE_SIZE / 2.0 - 2;
+    float bulletX = x + 13 - 2;
+    float bulletY = y + 13 - 2;
     bullets.add(new Bullet(bulletX, bulletY, dir, isEnemy));
   }
   
   void draw() {
     pushMatrix();
-    translate(x + TILE_SIZE / 2.0, y + TILE_SIZE / 2.0);
-    scale(1);
-    
+    translate(x + 13, y + 13);
     rotate(dir * HALF_PI);
     
     noStroke();
     fill(100, 100, 100);
-    rect(-16, -16, 6, 32);
-    rect(10, -16, 6, 32);
+    rect(-13, -13, 5, 26);
+    rect(8, -13, 5, 26);
     
     fill(255, 230, 0);
-    rect(-10, -14, 20, 28);
+    rect(-8, -11, 16, 22);
     
     fill(50, 50, 50);
-    rect(-3, -18, 6, 14);
+    rect(-2, -15, 4, 12);
     
     popMatrix();
   }
