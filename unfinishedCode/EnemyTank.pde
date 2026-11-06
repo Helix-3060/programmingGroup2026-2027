@@ -43,54 +43,13 @@ class EnemyTank {
     }
   }
   
-
-void chooseTacticalDirection() {
-  float targetX = 208;
-  float targetY = 384;
-
-  float bestScore = -999999;
-  int bestDir = dir;
-
-  for (int i = 0; i < 4; i++) {
-    float testX = x;
-    float testY = y;
-
-    // Check possible movement
-    switch (i) {
-      case 0: testY -= speed * 8; break;
-      case 1: testX += speed * 8; break;
-      case 2: testY += speed * 8; break;
-      case 3: testX -= speed * 8; break;
-    }
-
-    // Skip blocked directions
-    if (collidesWithMap(testX, testY)) {
-      continue;
-    }
-
-    // Distance to the base
-    float distance = dist(testX, testY, targetX, targetY);
-
-    // Prefer getting closer
-    float score = -distance;
-
-    // Slight preference for current direction
-    if (i == dir) {
-      score += 5;
-    }
-
-    // Small randomness
-    score += random(-8, 8);
-
-    if (score > bestScore) {
-      bestScore = score;
-      bestDir = i;
-    }
-  }
-
-  dir = bestDir;
-}
-
+  void chooseTacticalDirection() {
+    // Eagle is around x = 208 (center), y = 384 (bottom)
+    float targetX = 208;
+    float targetY = 384;
+    
+    float dx = targetX - x;
+    float dy = targetY - y;
     
     // Higher chance to move towards the Eagle base vertically or horizontally
     if (abs(dy) > abs(dx)) {
@@ -120,8 +79,8 @@ void chooseTacticalDirection() {
   }
   
   boolean collidesWithMap(float newX, float newY) {
-    int tankWidth = 26;
-    int tankHeight = 26;
+    int tankWidth = 32;
+    int tankHeight = 32;
     
     int leftTile   = int(newX / TILE_SIZE);
     int rightTile  = int((newX + tankWidth - 1) / TILE_SIZE);
@@ -140,26 +99,26 @@ void chooseTacticalDirection() {
   }
   
   void shoot() {
-    float bulletX = x + 13 - 2;
-    float bulletY = y + 13 - 2;
+    float bulletX = x + 16 - 2;
+    float bulletY = y + 16 - 2;
     bullets.add(new Bullet(bulletX, bulletY, dir, true));
   }
   
   void draw() {
     pushMatrix();
-    translate(x + 13, y + 13);
+    translate(x + 16, y + 16);
     rotate(dir * HALF_PI);
     
     noStroke();
     fill(80, 80, 80);
-    rect(-13, -13, 5, 26);
-    rect(8, -13, 5, 26);
+    rect(-16, -16, 6, 32);
+    rect(10, -16, 6, 32);
     
     fill(200, 50, 50);
-    rect(-8, -11, 16, 22);
+    rect(-10, -13, 20, 26);
     
     fill(30, 30, 30);
-    rect(-2, -15, 4, 12);
+    rect(-2, -16, 4, 16);
     
     popMatrix();
   }
