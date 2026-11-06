@@ -1,4 +1,3 @@
-//stephen p. wallace | nov 4th
 class Bullet {
   float x, y;
   float speed = 6.0;
@@ -27,17 +26,19 @@ class Bullet {
     }
     
     if (isEnemyBullet) {
-      if (x >= player.x && x <= player.x + TILE_SIZE && y >= player.y && y <= player.y + TILE_SIZE) {
-        player.x = 4 * TILE_SIZE;
-        player.y = 12 * TILE_SIZE;
+      if (x >= player.x && x <= player.x + 26 && y >= player.y && y <= player.y + 26) {
+        player.x = 4 * MACRO_SIZE;
+        player.y = 12 * MACRO_SIZE;
         active = false;
+        gameState = STATE_SCORE;
         return;
       }
     } else {
       for (int i = enemies.size() - 1; i >= 0; i--) {
         EnemyTank e = enemies.get(i);
-        if (x >= e.x && x <= e.x + TILE_SIZE && y >= e.y && y <= e.y + TILE_SIZE) {
+        if (x >= e.x && x <= e.x + 26 && y >= e.y && y <= e.y + 26) {
           enemies.remove(i);
+          score += 100;
           active = false;
           return;
         }
@@ -61,6 +62,7 @@ class Bullet {
       } else if (tile == TILE_EAGLE) {
         map.grid[row][col] = TILE_EMPTY;
         active = false;
+        gameState = STATE_SCORE; // Triggers Game Over if Eagle is destroyed
       }
     }
   }
