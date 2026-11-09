@@ -66,7 +66,8 @@ class Tank {
     pushMatrix();
     translate(x+16,y+16);
     rotate(dir * HALF_PI);
-    
+    image(playerImg, -10, -13, 20, 26);
+    /*
     noStroke();
     fill(100, 100, 100);
     rect(-16, -16, 6, 32);
@@ -77,7 +78,7 @@ class Tank {
     
     fill(50, 50, 50);
     rect(-2, -16, 4, 16);
-    
+    */
     popMatrix();
   }
 }
