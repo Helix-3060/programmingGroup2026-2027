@@ -188,7 +188,7 @@ class GameMap {
           case TILE_EAGLE:
             noStroke();
             fill(255, 200, 0);
-            image(eagleImg, x, y, TILE_SIZE*2, TILE_SIZE*2);
+            if (r % 2 == 0 && c % 2 == 0) {image(eagleImg, x, y, TILE_SIZE*2, TILE_SIZE*2);}
             //rect(x, y, TILE_SIZE, TILE_SIZE);
             break;
         }
