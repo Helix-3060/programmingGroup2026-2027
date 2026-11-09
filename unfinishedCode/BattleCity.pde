@@ -32,6 +32,13 @@ PImage metalImg;
 PImage grassImg;
 PImage waterImg;
 
+PImage enemyBasicImg;
+PImage enemyArmorImg;
+PImage enemyPowerImg;
+PImage enemySpeedImg;
+
+PImage playerImg;
+
 // Tile Types
 final int TILE_EMPTY = 0;
 final int TILE_BRICK = 1;
@@ -55,6 +62,8 @@ void setup() {
   metalImg = loadImage("Metal.png");
   grassImg = loadImage("Grass.png");
   waterImg = loadImage("Water.png");
+  playerImg = loadImage("PlayerTank.png");
+  enemyBasicImg = loadImage("EnemyBasicTank.png");
   
   map = new GameMap();
   bullets = new EntityManager();
