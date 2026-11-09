@@ -108,7 +108,8 @@ class EnemyTank {
     pushMatrix();
     translate(x + 16, y + 16);
     rotate(dir * HALF_PI);
-    
+    image(enemyBasicImg, -10, -13, 20, 26);
+    /*
     noStroke();
     fill(80, 80, 80);
     rect(-16, -16, 6, 32);
@@ -119,7 +120,7 @@ class EnemyTank {
     
     fill(30, 30, 30);
     rect(-2, -16, 4, 16);
-    
+    */
     popMatrix();
   }
 }
