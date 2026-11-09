@@ -136,13 +136,18 @@ class GameMap {
   void generateRandom() {
     clearGrid();
     for (int mr = 1; mr < MACRO_ROWS - 1; mr++) {
-      for (int mc = 0; mc < MACRO_COLS; mc++) {
+      for (int mc = 0; mc < MACRO_COLS / 2; mc++) {
         if (mr >= 10 && mc >= 3 && mc <= 9) continue;
         
         float rand = random(1.0);
         if (rand < 0.25) setMacro(mr, mc, TILE_BRICK);
         else if (rand < 0.32) setMacro(mr, mc, TILE_STEEL);
         else if (rand < 0.38) setMacro(mr, mc, TILE_BUSH);
+        for (int r = 0; r < GRID_ROWS; r++) {for (int c = 0; c < GRID_COLS; c++) { // scans the entire grid, besides player spawn so not stuck
+          int mirroredCols = 25 - c; // matches the left side with the right side, 0 grid on the left side is 25 on the right, etc etc
+          grid[r][mirroredCols] = grid[r][c]; // then overwrites left side onto the right side but backwards, 
+        }}
+        
       }
     }
     setMacro(12, 6, TILE_EAGLE);
