@@ -31,6 +31,7 @@ PImage brickImg;
 PImage metalImg;
 PImage grassImg;
 PImage waterImg;
+PImage eagleImg;
 
 PImage enemyBasicImg;
 PImage enemyArmorImg;
@@ -62,6 +63,7 @@ void setup() {
   metalImg = loadImage("Metal.png");
   grassImg = loadImage("Grass.png");
   waterImg = loadImage("Water.png");
+  eagleImg = loadImage("GoldenEagle.png");
   playerImg = loadImage("PlayerTank.png");
   enemyBasicImg = loadImage("EnemyBasicTank.png");
   
