@@ -1,14 +1,24 @@
 // stephen
 class Bullet {
-    // member variable
-  void move(PVector direction) {
-  // TODO: Use direction and this object's speed to update its position.
-  // Normalize a copy if you need consistent speed in every direction.
-  // Why: a vector can represent direction and magnitude together.
+    float x;
+    float y;
+    float speed;
+
+Bullet(float StartX, float StartY, float bulletspeed) {
+    x = StartX;
+    y = StartY;
+    speed = bulletspeed;
+
 }
-  // constructor
-  rect();
-    fill (155);
-    size (20, 20);
-  // Member Methods: behaviors of the buttons
+
+void move() {
+    y + y - 20;
+}
+
+void display() {
+    fill(255, 20, 50);
+    noStroke();
+    ellispe(x, y, 8, 16);
+}
+
 }
