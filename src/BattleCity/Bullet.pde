@@ -12,7 +12,7 @@ Bullet(float StartX, float StartY, float bulletspeed) {
 }
 
 void move() {
-    y + y - 20;
+    y = y - 20;
 }
 
 void display() {
