@@ -19,7 +19,7 @@ int gameState = STATE_START;
 
 String selectedDifficulty = "Normal";
 boolean cheatsEnabled = false;
-boolean useRandomMap = false; // Default to pre-made levels
+boolean useRandomMap = false; // defalt to made levels
 
 int currentLevel = 1;
 int maxLevels = 10;
