@@ -62,7 +62,7 @@ class Bullet {
       } else if (tile == TILE_EAGLE) {
         map.grid[row][col] = TILE_EMPTY;
         active = false;
-        gameState = STATE_SCORE; // Triggers Game Over if Eagle is destroyed
+        gameState = STATE_SCORE; // trigger game over here
       }
     }
   }
