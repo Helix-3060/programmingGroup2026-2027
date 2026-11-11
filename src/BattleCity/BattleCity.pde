@@ -1,5 +1,5 @@
 // --- BATTLE CITY ENGINE (Main Tab) ---
-// lucas
+// Bradley
 
 final int MACRO_COLS = 13; final int MACRO_ROWS = 13;
 final int GRID_ROWS = 26;  final int GRID_COLS = 26; 
