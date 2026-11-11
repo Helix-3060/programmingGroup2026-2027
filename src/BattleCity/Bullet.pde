@@ -11,14 +11,12 @@ Bullet(float StartX, float StartY, float bulletspeed) {
 
 }
 
-void move() {
-    y = y - 20;
-}
+void move() {}
 
 void display() {
     fill(255, 20, 50);
     noStroke();
-    ellispe(x, y, 8, 16);
+    ellipse(x, y, 8, 16);
 }
 
 }
