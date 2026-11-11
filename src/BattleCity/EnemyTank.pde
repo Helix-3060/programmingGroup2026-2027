@@ -14,8 +14,7 @@ class EnemyTank {
     float nextX = x;
     float nextY = y;
     
-    dirTimer++;
-    // AI Decision: Every 60 frames or upon wall collision, bias towards the Eagle base (bottom-center)
+    dirTimer++
     if (dirTimer > 60 || collidesWithMap(futureX(), futureY())) {
       chooseTacticalDirection();
       dirTimer = 0;
@@ -44,14 +43,12 @@ class EnemyTank {
   }
   
   void chooseTacticalDirection() {
-    // Eagle is around x = 208 (center), y = 384 (bottom)
     float targetX = 208;
     float targetY = 384;
     
     float dx = targetX - x;
     float dy = targetY - y;
     
-    // Higher chance to move towards the Eagle base vertically or horizontally
     if (abs(dy) > abs(dx)) {
       dir = (dy > 0) ? 2 : 0; // Down or Up
     } else {
