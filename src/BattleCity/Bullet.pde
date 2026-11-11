@@ -7,6 +7,8 @@ class Bullet {
   // Why: a vector can represent direction and magnitude together.
 }
   // constructor
-  
+  rect();
+    fill (155);
+    size (20, 20);
   // Member Methods: behaviors of the buttons
 }
