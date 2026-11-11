@@ -33,8 +33,7 @@ class EnemyTank {
     } else {
       chooseTacticalDirection();
     }
-    
-    // Aggressive automatic firing toward base/player
+  
     cooldown++;
     if (cooldown > 45) {
       shoot();
@@ -55,7 +54,6 @@ class EnemyTank {
       dir = (dx > 0) ? 1 : 3; // Right or Left
     }
     
-    // Add some tactical randomness so they don't get permanently stuck
     if (random(1.0) < 0.3) {
       dir = int(random(4));
     }
