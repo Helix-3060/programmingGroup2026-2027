@@ -9,7 +9,7 @@ class GameMap {
     clearGrid();
     
     switch(lvl) {
-      case 1: // Classic Columns
+      case 1: // collems
         for (int r = 1; r < 10; r += 2) {
           setMacro(r, 1, TILE_BRICK); setMacro(r, 2, TILE_BRICK);
           setMacro(r, 4, TILE_BRICK); setMacro(r, 5, TILE_BRICK);
@@ -21,7 +21,7 @@ class GameMap {
         setMacro(9, 2, TILE_BUSH); setMacro(9, 3, TILE_BUSH);
         break;
         
-      case 2: // Dual Steel Fortresses
+      case 2: // two fort
         setMacro(2, 2, TILE_STEEL); setMacro(2, 3, TILE_STEEL); setMacro(2, 4, TILE_STEEL);
         setMacro(2, 8, TILE_STEEL); setMacro(2, 9, TILE_STEEL); setMacro(2, 10, TILE_STEEL);
         setMacro(6, 1, TILE_BRICK); setMacro(6, 2, TILE_BRICK); setMacro(6, 3, TILE_BRICK);
@@ -30,7 +30,7 @@ class GameMap {
         setMacro(8, 5, TILE_BUSH); setMacro(8, 6, TILE_BUSH); setMacro(8, 7, TILE_BUSH);
         break;
         
-      case 3: // The Maze
+      case 3: // maze
         for (int c = 1; c < 12; c += 2) {
           setMacro(2, c, TILE_BRICK);
           setMacro(4, c, TILE_BRICK);
@@ -41,7 +41,7 @@ class GameMap {
         setMacro(3, 6, TILE_WATER);
         break;
         
-      case 4: // River Crossings
+      case 4: // river cross
         for (int r = 1; r < 11; r++) {
           setMacro(r, 3, TILE_WATER);
           setMacro(r, 9, TILE_WATER);
@@ -51,7 +51,7 @@ class GameMap {
         setMacro(8, 6, TILE_STEEL);
         break;
         
-      case 5: // Forest Ambush
+      case 5: // forest
         for (int r = 2; r < 10; r++) {
           for (int c = 1; c < 12; c += 3) {
             setMacro(r, c, TILE_BUSH);
@@ -61,7 +61,7 @@ class GameMap {
         setMacro(5, 2, TILE_STEEL); setMacro(5, 10, TILE_STEEL);
         break;
         
-      case 6: // Diamond Wall
+      case 6: // wall
         setMacro(3, 6, TILE_BRICK);
         setMacro(4, 5, TILE_BRICK); setMacro(4, 7, TILE_BRICK);
         setMacro(5, 4, TILE_BRICK); setMacro(5, 8, TILE_BRICK);
@@ -72,7 +72,7 @@ class GameMap {
         setMacro(6, 6, TILE_STEEL);
         break;
         
-      case 7: // The Iron Wall
+      case 7: // iron wall
         for (int c = 1; c < 12; c++) {
           if (c != 6) setMacro(5, c, TILE_STEEL);
         }
@@ -81,7 +81,7 @@ class GameMap {
         setMacro(3, 6, TILE_WATER);
         break;
         
-      case 8: // Sniper Alley
+      case 8: // sniper area
         for (int r = 1; r < 11; r += 2) {
           setMacro(r, 2, TILE_BRICK); setMacro(r, 6, TILE_BRICK); setMacro(r, 10, TILE_BRICK);
         }
@@ -89,7 +89,7 @@ class GameMap {
         setMacro(7, 4, TILE_WATER); setMacro(7, 8, TILE_WATER);
         break;
         
-      case 9: // The Gauntlet
+      case 9: // guantlet
         setMacro(2, 1, TILE_BRICK); setMacro(2, 2, TILE_BRICK); setMacro(2, 3, TILE_BRICK);
         setMacro(2, 9, TILE_BRICK); setMacro(2, 10, TILE_BRICK); setMacro(2, 11, TILE_BRICK);
         setMacro(4, 4, TILE_STEEL); setMacro(4, 5, TILE_STEEL); setMacro(4, 7, TILE_STEEL); setMacro(4, 8, TILE_STEEL);
@@ -97,7 +97,7 @@ class GameMap {
         setMacro(8, 4, TILE_WATER); setMacro(8, 8, TILE_WATER);
         break;
         
-      case 10: // Final Fortress
+      case 10: // final fortess
         setMacro(2, 5, TILE_STEEL); setMacro(2, 6, TILE_STEEL); setMacro(2, 7, TILE_STEEL);
         setMacro(4, 3, TILE_STEEL); setMacro(4, 9, TILE_STEEL);
         setMacro(6, 2, TILE_BRICK); setMacro(6, 4, TILE_BRICK); setMacro(6, 8, TILE_BRICK); setMacro(6, 10, TILE_BRICK);
@@ -106,7 +106,7 @@ class GameMap {
         break;
     }
     
-    // Always place Eagle Base at the bottom center
+    // place at bottom center
     setMacro(12, 6, TILE_EAGLE);
     setMacro(12, 5, TILE_BRICK);
     setMacro(11, 5, TILE_BRICK);
