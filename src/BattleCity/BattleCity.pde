@@ -1,9 +1,11 @@
-,// --- BATTLE CITY ENGINE (Main Tab) ---
+// --- BATTLE CITY ENGINE (Main Tab) ---
 // Bradley
 
-final int MACRO_COLS = 13; final int MACRO_ROWS = 13;
-final int GRID_ROWS = 26;  final int GRID_COLS = 26; 
-final int TILE_SIZE = 16;  final int MACRO_SIZE = 32;
+final int MACRO_COLS = 16; final int MACRO_ROWS = 16;
+final int GRID_ROWS = 16;  final int GRID_COLS = 16; 
+            final int TILE_SIZE = 32; 
+            
+//Tank[] nums = new Tank[32];
 
 // Game States
 final int STATE_START = 0;       final int STATE_MENU = 1;
@@ -32,10 +34,10 @@ final int TILE_BUSH = 4;   final int TILE_WATER = 5;
 
 boolean keyUp, keyDown, keyLeft, keyRight, keySpace;
 
-
+GameMap map;
 
 void setup() {
-  size(416, 416);
+  size(516, 516);
   frameRate(60);
   brickImg = loadImage("Brick.png");
   metalImg = loadImage("Metal.png");
@@ -44,11 +46,10 @@ void setup() {
   eagleImg = loadImage("GoldenEagle.png");
   playerImg = loadImage("PlayerTank.png");
   enemyBasicImg = loadImage("EnemyBasicTank.png");
-  
+  map = new GameMap();
 }
 
 void draw() {
-      
+   //for (int i=0; i<32; i++) {nums[i] = new Tank(0+i*16,0+i*16,false); nums[i].display();}
+   map.display();
 }
-
-
