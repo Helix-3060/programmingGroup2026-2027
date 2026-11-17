@@ -1,5 +1,5 @@
 //stephen
-class Music {
+class music {
   int CSong = 0;
 }
 
