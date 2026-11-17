@@ -7,4 +7,12 @@ Music() {
   
 }
 
-void display(int id) {}
+void display(int id) {
+  currentSong = id;
+
+  if (id == 1) {
+        song1();
+      } else if (id == 2) {
+        song2();
+      }
+}
