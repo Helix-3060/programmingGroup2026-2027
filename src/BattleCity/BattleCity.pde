@@ -37,8 +37,9 @@ boolean keyUp, keyDown, keyLeft, keyRight, keySpace;
 GameMap map;
 
 void setup() {
-  size(516, 516);
+  size(512, 512);
   frameRate(60);
+  background(0);
   brickImg = loadImage("Brick.png");
   metalImg = loadImage("Metal.png");
   grassImg = loadImage("Grass.png");
