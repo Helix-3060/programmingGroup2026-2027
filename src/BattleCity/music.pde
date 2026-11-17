@@ -1,8 +1,10 @@
 //stephen
-class Music {}
+class Music {
+  int currentSong = 0;
+}
 
 Music() {
   
 }
 
-void play() {}
+void play(int id) {}
