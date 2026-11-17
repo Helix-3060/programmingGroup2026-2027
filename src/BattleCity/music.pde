@@ -1,6 +1,8 @@
 //stephen
 class music {
   int CSong = 0;
+  song1;
+  song2;
 }
 
 Music() {
