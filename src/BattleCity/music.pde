@@ -7,4 +7,4 @@ Music() {
   
 }
 
-void play(int id) {}
+void display(int id) {}
