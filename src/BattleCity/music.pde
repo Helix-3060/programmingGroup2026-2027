@@ -1,6 +1,6 @@
 //stephen
 class Music {
-  int currentSong = 0;
+  int CSong = 0;
 }
 
 Music() {
@@ -8,7 +8,7 @@ Music() {
 }
 
 void display(int id) {
-  currentSong = id;
+  CSong = id;
 
   if (id == 1) {
         song1();
@@ -16,3 +16,6 @@ void display(int id) {
         song2();
       }
 }
+
+//note to dev team, need to ask Mr k on how to set tthis up the refences arent helping much...
+//also fyi "CSong" is short for "Current song", and if we want another track copy paste the else if and incesue "id == (the number) by onee.
