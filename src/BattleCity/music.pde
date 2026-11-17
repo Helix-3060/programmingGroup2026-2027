@@ -5,7 +5,7 @@ class music {
   song2;
 }
 
-Music() {
+Music(int id) {
   
 }
 
