@@ -43,14 +43,14 @@ void setup() {
   enemyBasicImg = loadImage("EnemyBasicTank.png");
   
   map = new GameMap();
-  player = new Tank(4* TILE_SIZE, 4* TILE_SIZE, false);
-  
+  player = new Tank(3* TILE_SIZE, 3* TILE_SIZE, false);
+  /*
   map.setTile(2, 5, 0);
   map.setTile(2, 6, 1);
   map.setTile(2, 7, 2);
   map.setTile(2, 8, 3);
   map.setTile(2, 9, 4);
-  map.setTile(2, 10, 5);
+  map.setTile(2, 10, 5);*/
 }
 
 void draw() {
