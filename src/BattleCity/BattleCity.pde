@@ -1,17 +1,13 @@
 // --- BATTLE CITY ENGINE (Main Tab) ---
 // Bradley
 
-final int MACRO_COLS = 16; final int MACRO_ROWS = 16;
-final int GRID_ROWS = 16;  final int GRID_COLS = 16; 
-            final int TILE_SIZE = 32; 
+
+final int GRID_ROWS = 15;  final int GRID_COLS = 15; 
+            final int TILE_SIZE = 30; 
             
 //Tank[] nums = new Tank[32];
 
 // Game States
-final int STATE_START = 0;       final int STATE_MENU = 1;
-final int STATE_MANUAL_PLAY = 2; final int STATE_QUICK_PLAY = 3;
-final int STATE_PLAYING = 4;     final int STATE_VICTORY = 5;
-final int STATE_SCORE = 6;       int gameState = STATE_START;
 
 String selectedDifficulty = "Normal";
 boolean cheatsEnabled = false;       boolean useRandomMap = false; // Default to pre-made levels
@@ -28,16 +24,14 @@ PImage enemyPowerImg;PImage enemySpeedImg;
 PImage playerImg;
 
 // Tile Types
-final int TILE_EMPTY = 0;  final int TILE_BRICK = 1;
-final int TILE_STEEL = 2;  final int TILE_EAGLE = 3;
-final int TILE_BUSH = 4;   final int TILE_WATER = 5;
+
 
 boolean keyUp, keyDown, keyLeft, keyRight, keySpace;
-
+Tank player;
 GameMap map;
 
 void setup() {
-  size(512, 512);
+  size(453, 453);
   frameRate(60);
   background(0);
   brickImg = loadImage("Brick.png");
@@ -47,10 +41,36 @@ void setup() {
   eagleImg = loadImage("GoldenEagle.png");
   playerImg = loadImage("PlayerTank.png");
   enemyBasicImg = loadImage("EnemyBasicTank.png");
+  
   map = new GameMap();
+  player = new Tank(4* TILE_SIZE, 4* TILE_SIZE, false);
+  
+  map.setTile(2, 5, 0);
+  map.setTile(2, 6, 1);
+  map.setTile(2, 7, 2);
+  map.setTile(2, 8, 3);
+  map.setTile(2, 9, 4);
+  map.setTile(2, 10, 5);
 }
 
 void draw() {
-   //for (int i=0; i<32; i++) {nums[i] = new Tank(0+i*16,0+i*16,false); nums[i].display();}
    map.display();
+   //for (int i=0; i<32; i++) {nums[i] = new Tank(0+i*16,0+i*16,false); nums[i].display();}
+   player.update();
+   player.display();
+   
+}
+
+void keyPressed() {
+  if (keyCode == UP) {keyUp = true;}
+  if (keyCode == DOWN) {keyDown = true;}
+  if (keyCode == LEFT) {keyLeft = true;}
+  if (keyCode == RIGHT) {keyRight = true;}
+}
+
+void keyReleased() {
+  if (keyCode == UP)    keyUp = false;
+  if (keyCode == DOWN)  keyDown = false;
+  if (keyCode == LEFT)  keyLeft = false;
+  if (keyCode == RIGHT) keyRight = false;
 }
