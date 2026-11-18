@@ -1,5 +1,5 @@
 //stephen
-
+//this came from the refenceing site, still have no idea how this works i need to resaerch more but i need to focas on other classes right now.
 import processing.video.*;
 Movie myMovie;
 
