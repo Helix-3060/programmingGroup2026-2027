@@ -1,29 +1,15 @@
 //stephen
 
-import processing.sound.*;
+import processing.video.*;
+Movie myMovie;
 
-class music {
-  int CSong = 0;
- SoundFile song1;
- SoundFile song2;
+void setup() {
+  size(200, 200);
+  myMovie = new Movie(this, "totoro.mov");
+  myMovie.loop();
 }
 
-Music(int id) {
-  
+// Called every time a new frame is available to read
+void movieEvent(Movie m) {
+  m.read();
 }
-void display(int id) {
-  CSong = id;
-
-  if (id == 1) {
-        song1();
-      } else if (id == 2) {
-        song2();
-      }
-
-
-  //note to dev team, need to ask Mr k on how to set tthis up the refences arent helping much...
-  //also fyi "CSong" is short for "Current song", and if we want another track copy paste the else if and incesue "id == (the number) by onee.
-  file = new SoundFile(this, "sample.mp3");
-  file.play();
-} 
-
