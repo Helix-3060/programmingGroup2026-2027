@@ -12,7 +12,6 @@ class GameMap {
   // constructor
   GameMap() {grid = new int[GRID_ROWS][GRID_COLS];}
   
-  // Member Methods behaviors of the buttons
   void setTile(int col, int row, int tileType) {
     // checks only in the boundaries of the map
     if (col >= 0 && col < GRID_COLS && row >=0 && row < GRID_ROWS) {
