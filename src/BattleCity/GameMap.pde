@@ -16,7 +16,7 @@ class GameMap {
   void setTile(int col, int row, int tileType) {
     // checks only in the boundaries of the map
     if (col >= 0 && col < GRID_COLS && row >=0 && row < GRID_ROWS) {
-      grid[row-1][col-1] = tileType;
+      grid[row-1][col] = tileType;
     }
   }
   void display() {
@@ -28,13 +28,9 @@ class GameMap {
       if (grid[r][c] == 3) {image(eagleImg, c * cellSize, r * cellSize, cellSize, cellSize); tileType=3;}  // stuff
       if (grid[r][c] == 4) {image(grassImg, c * cellSize, r * cellSize, cellSize, cellSize); tileType=4;}  // stuff
       if (grid[r][c] == 5) {image(waterImg, c * cellSize, r * cellSize, cellSize, cellSize); tileType=5;}  // stuff
-      collisions(r,c,r,c);
     }}
     
   }
-  void collisions(int x, int y, int r, int c) {
-    if (x > x - r && x < x + r &&
-        y > y - c && y < y + c) {}
-  }
+
   
 }
