@@ -44,13 +44,13 @@ void setup() {
   
   map = new GameMap();
   player = new Tank(3* TILE_SIZE, 3* TILE_SIZE, false);
-  /*
+  
   map.setTile(2, 5, 0);
   map.setTile(2, 6, 1);
   map.setTile(2, 7, 2);
   map.setTile(2, 8, 3);
   map.setTile(2, 9, 4);
-  map.setTile(2, 10, 5);*/
+  map.setTile(2, 10, 5);
 }
 
 void draw() {
