@@ -7,7 +7,7 @@ class music {
  SoundFile song2;
 }
 
-Music(int id) {
+music(int id) {
   
 }
 void display(int id) {
