@@ -15,7 +15,7 @@ class GameMap {
   void setTile(int col, int row, int tileType) {
     // checks only in the boundaries of the map
     if (col >= 0 && col < GRID_COLS && row >=0 && row < GRID_ROWS) {
-      grid[row-1][col] = tileType;
+      grid[row][col] = tileType;
     }
   }
   void display() {
@@ -26,7 +26,14 @@ class GameMap {
       if (grid[r][c] == 4) {image(grassImg, c * cellSize, r * cellSize, cellSize, cellSize);}  /* tile bush */  if (grid[r][c] == 5) {image(waterImg, c * cellSize, r * cellSize, cellSize, cellSize);}  /* tile water */}}
   }
   
-  void getTile(int x, int y) {if (grid[y][x] == 1) {println("brick at ", x, "," ,y); tileType = TILE_BRICK;}}
+  int getTile(int x, int y) {if (grid[y][x] == 1) {/*println("brick tile at ", x, "," ,y);*/      tileType = TILE_BRICK; return tileType;} 
+                              else if (grid[y][x] == 2) {/*println("steel tile at", x, ",", y);*/ tileType = TILE_STEEL; return tileType;}
+                              else if (grid[y][x] == 3) {/*println("eagle tile at", x, ",", y);*/ tileType = TILE_EAGLE; return tileType;}
+                              else if (grid[y][x] == 4) {/*println(" bush tile at", x, "," ,y);*/ tileType = TILE_BUSH; return tileType;}
+                              else if (grid[y][x] == 5) {/*println("water tile at", x, "," ,y);*/ tileType = TILE_WATER; return tileType;}
+                              else {tileType = TILE_EMPTY; return tileType;}
+                            }
+                            
 
   
 }
