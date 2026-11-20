@@ -10,5 +10,4 @@ void setup() {
 // on the code refence in prossesing.org it says we can use .mp4 and .mov but it says .mov loads faster and smoother. dont know if thats still tthe best kidea or not but well see.
 void movieEvent(Movie m) {
   m.read();
-  m.read();
 }
