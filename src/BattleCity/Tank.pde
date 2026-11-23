@@ -1,5 +1,5 @@
 // stephen
-
+// colision looks interesting could we discuss more about how it works so i can better understand. and comment it in the code
 class Tank {
   // member variable
   float x, y, w, h;
